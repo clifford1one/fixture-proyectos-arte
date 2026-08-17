@@ -110,7 +110,11 @@ La primera vez que un estudiante ingresa al formulario, se le crea una subcarpet
 
 ![propuesta gráfica sección categoría](./img/orbita-2.gif)
 
+Disponible también [aquí](https://editor.p5js.org/clifford1one/full/PClDLQECW)
+
 ![propuesta gráfica sección todos los proyectos](./img/grilla.gif)
+
+Disponible también [aquí](https://editor.p5js.org/clifford1one/full/Q9BgvYTbt)
 
 ### Vista
 
