@@ -147,4 +147,4 @@ Cada una de las categorías genera un html/pdf exportable, con opciones de perso
 ## Definiciones pendientes
 
 - Qué pasa con el material cuando egresa una generación.
-- Bajo qué cuenta se almacena´ran los datos.
+- Bajo qué cuenta se almacenarán los datos.
