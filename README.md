@@ -74,6 +74,8 @@ flowchart TD
     M --> E
 ```
 
+También disponible [aquí](./img/flujo.png)
+
 ### Formatos y límites
 
 Las imágenes deben ser subidas en formato PNG, JPG o JPEG(el formulario no admite HEIC o similares). Al subir una imagen, ocurre una compresión dentro del navegador, y luego esta es subida al drive de una cuenta institucional por determinar.
