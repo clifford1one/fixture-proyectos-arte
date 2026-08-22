@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Archivo de prácticas — Subida de trabajos</title>
+<style>
+  /* ---------- Base ---------- */
+  :root {
+    --fondo: #f5f5f5;
+    --tinta: #1a1a1a;
+    --tinta-media: #555555;
+    --tinta-suave: #8a8a8a;
+    --borde: #1a1a1a;
+    --borde-tenue: #c9c9c9;
+    --papel: #fdfdfd;
+    --radio: 3px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 3rem 1.25rem 5rem;
+    background: var(--fondo);
+    color: var(--tinta);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .contenedor {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  /* ---------- Encabezado ---------- */
+  .encabezado {
+    border-bottom: 1px solid var(--borde);
+    padding-bottom: 1.5rem;
+    margin-bottom: 3rem;
+  }
+
+  .encabezado h1 {
+    margin: 0 0 0.5rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .encabezado p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--tinta-media);
+    max-width: 46ch;
+  }
+
+  /* ---------- Campos ---------- */
+  .campo {
+    margin-bottom: 2.5rem;
+  }
+
+  .campo > label,
+  .campo > .rotulo {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.625rem;
+  }
+
+  .ayuda {
+    font-size: 0.8125rem;
+    color: var(--tinta-suave);
+    margin: 0.5rem 0 0;
+  }
+
+  input[type="text"],
+  select {
+    width: 100%;
+    padding: 0.75rem 0.875rem;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--tinta);
+    background-color: var(--papel);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  select {
+    /* Flecha dibujada con gradientes: sin imágenes externas y en escala de grises */
+    background-image: linear-gradient(45deg, transparent 50%, var(--tinta) 50%),
+                      linear-gradient(135deg, var(--tinta) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 2.5rem;
+  }
+
+  input[type="text"]:focus,
+  select:focus,
+  button:focus-visible,
+  .boton-archivo:focus-within {
+    outline: 2px solid var(--tinta);
+    outline-offset: 2px;
+  }
+
+  /* Campos bloqueados mientras se sube una tanda */
+  input[type="text"]:disabled,
+  select:disabled {
+    color: var(--tinta-suave);
+    background-color: #ededed;
+    border-color: var(--borde-tenue);
+    cursor: not-allowed;
+  }
+
+  .boton-archivo:has(input:disabled) {
+    color: var(--tinta-suave);
+    background: #ededed;
+    border-color: var(--borde-tenue);
+    cursor: not-allowed;
+  }
+
+  /* Los grupos del select llevan el nombre de la línea curricular */
+  optgroup {
+    font-weight: 600;
+    font-style: normal;
+    color: var(--tinta);
+  }
+
+  optgroup option {
+    font-weight: 400;
+  }
+
+  /* ---------- Selector de archivos ---------- */
+  .boton-archivo {
+    display: inline-block;
+    position: relative;
+    padding: 0.75rem 1.25rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--papel);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .boton-archivo:hover { background: #ebebeb; }
+
+  .boton-archivo input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ---------- Grilla de previsualizaciones ---------- */
+  .grilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .miniatura {
+    position: relative;
+    margin: 0;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--papel);
+    overflow: hidden;
+  }
+
+  .miniatura.rechazada {
+    border-style: dashed;
+    border-color: var(--tinta-suave);
+  }
+
+  .miniatura .lienzo {
+    aspect-ratio: 1 / 1;
+    background: #e4e4e4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--borde-tenue);
+  }
+
+  .miniatura.rechazada .lienzo {
+    background: repeating-linear-gradient(
+      45deg, #e8e8e8, #e8e8e8 6px, #dedede 6px, #dedede 12px
+    );
+  }
+
+  .miniatura .lienzo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .miniatura.rechazada .lienzo img { opacity: 0.3; }
+
+  .sin-vista {
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tinta-suave);
+    text-align: center;
+    padding: 0 0.5rem;
+  }
+
+  .miniatura .datos {
+    padding: 0.625rem 0.75rem 0.75rem;
+  }
+
+  .miniatura .nombre-archivo {
+    font-size: 0.75rem;
+    line-height: 1.35;
+    word-break: break-all;
+    margin: 0 0 0.25rem;
+  }
+
+  .miniatura .peso {
+    font-size: 0.6875rem;
+    color: var(--tinta-suave);
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .miniatura .motivo,
+  .miniatura .estado {
+    margin: 0.5rem 0 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--borde-tenue);
+    font-size: 0.6875rem;
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--tinta);
+  }
+
+  /* Estados de subida, diferenciados sin color */
+  .miniatura.subiendo .estado { font-weight: 400; font-style: italic; color: var(--tinta-media); }
+  .miniatura.subiendo .lienzo img { opacity: 0.4; }
+  .miniatura.subida .lienzo img { opacity: 0.55; }
+  .miniatura.subida { border-color: var(--borde-tenue); }
+  .miniatura.con-error { border-style: dashed; }
+
+  .quitar {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--papel);
+    color: var(--tinta);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .quitar:hover { background: var(--tinta); color: var(--papel); }
+
+  .quitar:disabled {
+    color: var(--tinta-suave);
+    border-color: var(--borde-tenue);
+    cursor: not-allowed;
+  }
+
+  .quitar:disabled:hover { background: var(--papel); color: var(--tinta-suave); }
+
+  /* ---------- Resumen y envío ---------- */
+  .resumen {
+    margin-top: 1.25rem;
+    font-size: 0.8125rem;
+    color: var(--tinta-media);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pie {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--borde);
+  }
+
+  .enviar {
+    width: 100%;
+    padding: 1rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--papel);
+    background: var(--tinta);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    cursor: pointer;
+  }
+
+  .enviar:disabled {
+    color: var(--tinta-suave);
+    background: transparent;
+    border-color: var(--borde-tenue);
+    cursor: not-allowed;
+  }
+
+  .aviso-envio {
+    margin: 1rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--tinta-media);
+    min-height: 1.2em;
+  }
+
+  /* ---------- Celular ---------- */
+  @media (max-width: 480px) {
+    body { padding: 2rem 1rem 4rem; }
+    .encabezado { margin-bottom: 2.25rem; }
+    .campo { margin-bottom: 2rem; }
+    .grilla { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.75rem; }
+    .boton-archivo { display: block; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="contenedor">
+
+  <header class="encabezado">
+    <h1>Archivo de prácticas</h1>
+    <p>Sube imágenes de tus trabajos indicando el curso al que pertenecen. Puedes volver las veces que quieras durante el mes de subida.</p>
+  </header>
+
+  <form id="formulario" novalidate>
+
+    <!-- Nombre del estudiante -->
+    <div class="campo">
+      <label for="nombre">Nombre del estudiante</label>
+      <input type="text" id="nombre" name="nombre" autocomplete="name" placeholder="Nombre y apellido">
+    </div>
+
+    <!-- Curso: agrupado por línea curricular, que se deduce de la elección -->
+    <div class="campo">
+      <label for="curso">Curso</label>
+      <select id="curso" name="curso">
+        <option value="">Elige un curso</option>
+      </select>
+    </div>
+
+    <!-- Imágenes -->
+    <div class="campo">
+      <span class="rotulo" id="rotulo-imagenes">Imágenes</span>
+
+      <label class="boton-archivo" for="imagenes">
+        Elegir imágenes
+        <input type="file" id="imagenes" name="imagenes" accept="image/png,image/jpeg" multiple
+               aria-labelledby="rotulo-imagenes">
+      </label>
+
+      <p class="ayuda">Formatos PNG, JPG o JPEG. Máximo 10&nbsp;MB por imagen. Puedes agregar más en varias tandas.</p>
+
+      <div class="grilla" id="grilla"></div>
+      <p class="resumen" id="resumen" aria-live="polite"></p>
+    </div>
+
+    <!-- Envío -->
+    <div class="pie">
+      <button type="submit" class="enviar" id="enviar" disabled>Enviar trabajos</button>
+      <p class="aviso-envio" id="aviso-envio" aria-live="polite"></p>
+    </div>
+
+  </form>
+
+</div>
+
+<script>
+/* =========================================================
+   1. Estructura curricular
+   Editar aquí para agregar, quitar o renombrar cursos.
+   ========================================================= */
+const LINEAS_CURRICULARES = {
+  "Talleres": [
+    { nombre: "Taller de operaciones y procedimientos visuales", semestre: "S1-S2" },
+    { nombre: "Taller de prácticas artísticas I", semestre: "S3" },
+    { nombre: "Taller de prácticas artísticas II", semestre: "S4" }
+  ],
+  "Estudios visuales": [
+    { nombre: "Introducción a las vanguardias artísticas", semestre: "S1" },
+    { nombre: "Introducción al arte contemporáneo", semestre: "S2" },
+    { nombre: "Arte contemporáneo en Chile y Latinoamérica", semestre: "S3" },
+    { nombre: "Teoría de la imagen", semestre: "S4" }
+  ],
+  "Lenguajes artísticos": [
+    { nombre: "Dibujo y observación", semestre: "S1" },
+    { nombre: "Dibujo y observación II", semestre: "S2" },
+    { nombre: "Técnicas escultóricas", semestre: "S2" },
+    { nombre: "Técnicas pictóricas", semestre: "S3" },
+    { nombre: "Lenguajes escultóricos", semestre: "S3" },
+    { nombre: "Lenguajes pictóricos", semestre: "S4" }
+  ],
+  "Imagen y tecnología": [
+    { nombre: "Medios gráficos", semestre: "S1" },
+    { nombre: "Medios digitales", semestre: "S2" },
+    { nombre: "Imagen fija", semestre: "S3" },
+    { nombre: "Imagen en movimiento", semestre: "S4" }
+  ],
+  "Gestión": [
+    { nombre: "Circuitos artísticos", semestre: "S1" }
+  ]
+};
+
+/* =========================================================
+   2. Reglas de validación de archivos
+   ========================================================= */
+const TIPOS_PERMITIDOS = ["image/png", "image/jpeg"];
+const EXTENSIONES_PERMITIDAS = ["png", "jpg", "jpeg"];
+const PESO_MAXIMO_BYTES = 10 * 1024 * 1024; // 10 MB por imagen
+
+// Compresión en el navegador, antes de enviar.
+const LADO_MAXIMO = 2000;      // píxeles del lado mayor
+const CALIDAD_WEBP = 0.85;
+
+/* =========================================================
+   3. Estado y referencias del DOM
+   ========================================================= */
+
+// Imágenes elegidas hasta ahora. Cada elemento:
+// { id, archivo, valido, motivo, urlVista, estado, mensajeEstado, nodo }
+// estado: "pendiente" | "subiendo" | "subida" | "error"
+let imagenesElegidas = [];
+let ultimoId = 0;
+
+// Bloquea el formulario mientras se está subiendo una tanda.
+let subidaEnCurso = false;
+
+const campoNombre   = document.getElementById("nombre");
+const selectCurso   = document.getElementById("curso");
+const inputImagenes = document.getElementById("imagenes");
+const grilla        = document.getElementById("grilla");
+const resumen       = document.getElementById("resumen");
+const botonEnviar   = document.getElementById("enviar");
+const avisoEnvio    = document.getElementById("aviso-envio");
+const formulario    = document.getElementById("formulario");
+
+/* =========================================================
+   4. Select de cursos
+   Solo se pregunta el curso: la línea curricular se deduce
+   de la estructura, así que no hace falta pedirla.
+   ========================================================= */
+
+function crearOpcion(valor, texto) {
+  const opcion = document.createElement("option");
+  opcion.value = valor;
+  opcion.textContent = texto;
+  return opcion;
+}
+
+// Carga todos los cursos, agrupados por línea para que se lean ordenados.
+function cargarCursos() {
+  Object.keys(LINEAS_CURRICULARES).forEach(function (linea) {
+    const grupo = document.createElement("optgroup");
+    grupo.label = linea;
+
+    LINEAS_CURRICULARES[linea].forEach(function (curso) {
+      const etiqueta = curso.nombre + " (" + curso.semestre + ")";
+      grupo.appendChild(crearOpcion(curso.nombre, etiqueta));
+    });
+
+    selectCurso.appendChild(grupo);
+  });
+}
+
+// Devuelve la línea curricular a la que pertenece un curso.
+function buscarLineaDeCurso(nombreCurso) {
+  const lineas = Object.keys(LINEAS_CURRICULARES);
+
+  for (let i = 0; i < lineas.length; i++) {
+    const pertenece = LINEAS_CURRICULARES[lineas[i]].some(function (curso) {
+      return curso.nombre === nombreCurso;
+    });
+    if (pertenece) return lineas[i];
+  }
+  return "";
+}
+
+/* =========================================================
+   5. Validación e incorporación de imágenes
+   ========================================================= */
+
+// Devuelve la extensión en minúsculas, o cadena vacía si no tiene.
+function obtenerExtension(nombreArchivo) {
+  const partes = nombreArchivo.split(".");
+  return partes.length > 1 ? partes.pop().toLowerCase() : "";
+}
+
+// Revisa formato y peso. Devuelve el motivo del rechazo, o null si está bien.
+function motivoDeRechazo(archivo) {
+  const extension = obtenerExtension(archivo.name);
+  const formatoValido =
+    TIPOS_PERMITIDOS.indexOf(archivo.type) !== -1 ||
+    EXTENSIONES_PERMITIDAS.indexOf(extension) !== -1;
+
+  if (!formatoValido) {
+    return "Formato no admitido: solo PNG, JPG o JPEG.";
+  }
+  if (archivo.size > PESO_MAXIMO_BYTES) {
+    return "Pesa " + formatearPeso(archivo.size) + ", el máximo es 10 MB.";
+  }
+  return null;
+}
+
+// Evita repetir un archivo comparando nombre, peso y fecha de modificación.
+function yaEstaElegido(archivo) {
+  return imagenesElegidas.some(function (item) {
+    return item.archivo.name === archivo.name &&
+           item.archivo.size === archivo.size &&
+           item.archivo.lastModified === archivo.lastModified;
+  });
+}
+
+// Suma archivos nuevos a la selección, sin tocar los que ya estaban.
+function agregarImagenes(listaArchivos) {
+  let omitidos = 0;
+
+  Array.prototype.forEach.call(listaArchivos, function (archivo) {
+    if (yaEstaElegido(archivo)) {
+      omitidos++;
+      return;
+    }
+
+    const motivo = motivoDeRechazo(archivo);
+
+    imagenesElegidas.push({
+      id: ++ultimoId,
+      archivo: archivo,
+      valido: motivo === null,
+      motivo: motivo,
+      // Solo pedimos vista previa si el navegador puede dibujar el archivo.
+      urlVista: archivo.type.indexOf("image/") === 0 ? URL.createObjectURL(archivo) : null,
+      estado: "pendiente",
+      mensajeEstado: "",
+      pesoComprimido: null, // se conoce recién al comprimir, antes de enviar
+      nodo: null
+    });
+  });
+
+  avisoEnvio.textContent = omitidos > 0
+    ? "Se omitieron " + omitidos + " imagen(es) que ya estaban en la lista."
+    : "";
+
+  dibujarGrilla();
+  actualizarEstadoEnvio();
+}
+
+// Saca una imagen de la selección y libera su vista previa.
+function quitarImagen(id) {
+  const indice = imagenesElegidas.findIndex(function (item) { return item.id === id; });
+  if (indice === -1) return;
+
+  if (imagenesElegidas[indice].urlVista) {
+    URL.revokeObjectURL(imagenesElegidas[indice].urlVista);
+  }
+  imagenesElegidas.splice(indice, 1);
+
+  avisoEnvio.textContent = "";
+  dibujarGrilla();
+  actualizarEstadoEnvio();
+}
+
+/* =========================================================
+   6. Grilla de previsualizaciones
+   ========================================================= */
+
+function formatearPeso(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function dibujarGrilla() {
+  grilla.innerHTML = "";
+  imagenesElegidas.forEach(function (item) {
+    grilla.appendChild(crearMiniatura(item));
+  });
+  actualizarResumen();
+}
+
+function crearMiniatura(item) {
+  const figura = document.createElement("figure");
+  figura.className = "miniatura " + claseSegunEstado(item);
+
+  figura.appendChild(crearLienzo(item));
+  figura.appendChild(crearDatos(item));
+  figura.appendChild(crearBotonQuitar(item));
+
+  // Guardamos el nodo para poder repintar solo esta miniatura.
+  item.nodo = figura;
+  return figura;
+}
+
+function claseSegunEstado(item) {
+  if (!item.valido) return "rechazada";
+  if (item.estado === "subiendo") return "subiendo";
+  if (item.estado === "subida") return "subida";
+  if (item.estado === "error") return "con-error";
+  return "";
+}
+
+// Vuelve a dibujar una sola miniatura, sin rehacer toda la grilla.
+function repintarMiniatura(item) {
+  if (!item.nodo) return;
+  item.nodo.replaceWith(crearMiniatura(item));
+}
+
+// Cuadrado con la imagen o, si no se puede previsualizar, un aviso.
+function crearLienzo(item) {
+  const lienzo = document.createElement("div");
+  lienzo.className = "lienzo";
+
+  if (item.urlVista) {
+    const imagen = document.createElement("img");
+    imagen.src = item.urlVista;
+    imagen.alt = item.archivo.name;
+    imagen.loading = "lazy";
+    lienzo.appendChild(imagen);
+  } else {
+    const aviso = document.createElement("span");
+    aviso.className = "sin-vista";
+    aviso.textContent = "Sin vista previa";
+    lienzo.appendChild(aviso);
+  }
+
+  return lienzo;
+}
+
+// Nombre, peso y, cuando corresponde, motivo del rechazo.
+function crearDatos(item) {
+  const datos = document.createElement("figcaption");
+  datos.className = "datos";
+
+  const nombreArchivo = document.createElement("p");
+  nombreArchivo.className = "nombre-archivo";
+  nombreArchivo.textContent = item.archivo.name;
+  datos.appendChild(nombreArchivo);
+
+  const peso = document.createElement("p");
+  peso.className = "peso";
+  peso.textContent = textoDePeso(item);
+  datos.appendChild(peso);
+
+  if (!item.valido) {
+    const motivo = document.createElement("p");
+    motivo.className = "motivo";
+    motivo.textContent = "Rechazada — " + item.motivo;
+    datos.appendChild(motivo);
+  } else if (item.estado !== "pendiente") {
+    const estado = document.createElement("p");
+    estado.className = "estado";
+    estado.textContent = textoDeEstado(item);
+    datos.appendChild(estado);
+  }
+
+  return datos;
+}
+
+// Muestra el peso original y, cuando ya se comprimió, también el nuevo.
+function textoDePeso(item) {
+  const original = formatearPeso(item.archivo.size);
+
+  if (item.pesoComprimido === null) return original;
+  return original + " → " + formatearPeso(item.pesoComprimido) + " WebP";
+}
+
+function textoDeEstado(item) {
+  if (item.estado === "subiendo") return "Subiendo…";
+  if (item.estado === "error") return "Error — " + item.mensajeEstado;
+
+  if (item.estado === "subida") {
+    return item.errorPlanilla
+      ? "✓ Subida a Drive, pero no quedó registrada en la planilla"
+      : "✓ Subida a Drive";
+  }
+  return "";
+}
+
+function crearBotonQuitar(item) {
+  const boton = document.createElement("button");
+  boton.type = "button";
+  boton.className = "quitar";
+  boton.textContent = "×";
+  boton.title = "Quitar " + item.archivo.name;
+  boton.setAttribute("aria-label", "Quitar " + item.archivo.name);
+  boton.disabled = subidaEnCurso; // no se toca la lista mientras se sube
+  boton.addEventListener("click", function () { quitarImagen(item.id); });
+  return boton;
+}
+
+function actualizarResumen() {
+  if (imagenesElegidas.length === 0) {
+    resumen.textContent = "";
+    return;
+  }
+
+  const partes = [];
+  const pendientes = contarPorEstado("pendiente");
+  const subidas = contarPorEstado("subida");
+  const conError = contarPorEstado("error");
+  const rechazadas = imagenesElegidas.filter(function (item) { return !item.valido; }).length;
+
+  if (pendientes > 0) partes.push(pendientes + " por subir");
+  if (subidas > 0) partes.push(subidas + " subida(s)");
+  if (conError > 0) partes.push(conError + " con error, se reintentará");
+  if (rechazadas > 0) partes.push(rechazadas + " rechazada(s), no se enviarán");
+
+  resumen.textContent = partes.join(" · ") + ".";
+}
+
+/* =========================================================
+   7. Habilitación del botón de envío
+   ========================================================= */
+
+// Cuenta imágenes válidas que están en un estado dado.
+function contarPorEstado(estado) {
+  return imagenesElegidas.filter(function (item) {
+    return item.valido && item.estado === estado;
+  }).length;
+}
+
+// Se suben las válidas que aún no están en Drive; las que fallaron se reintentan.
+function faltaSubir(item) {
+  return item.valido && (item.estado === "pendiente" || item.estado === "error");
+}
+
+function contarPorSubir() {
+  return imagenesElegidas.filter(faltaSubir).length;
+}
+
+function formularioCompleto() {
+  return campoNombre.value.trim() !== "" &&
+         selectCurso.value !== "" &&
+         contarPorSubir() > 0;
+}
+
+function actualizarEstadoEnvio() {
+  botonEnviar.disabled = subidaEnCurso || !formularioCompleto();
+  botonEnviar.textContent = subidaEnCurso ? "Subiendo…" : "Enviar trabajos";
+
+  // Mientras sube no se cambian los datos de la tanda.
+  campoNombre.disabled = subidaEnCurso;
+  selectCurso.disabled = subidaEnCurso;
+  inputImagenes.disabled = subidaEnCurso;
+}
+
+/* =========================================================
+   8. Compresión en el navegador
+   Se achica y se pasa a WebP antes de enviar, para no mandar
+   fotos de celular de varios MB.
+   ========================================================= */
+
+// Cambia la extensión del nombre por .webp.
+function nombreComoWebp(nombreArchivo) {
+  const punto = nombreArchivo.lastIndexOf(".");
+  const base = punto > 0 ? nombreArchivo.slice(0, punto) : nombreArchivo;
+  return base + ".webp";
+}
+
+// Calcula el tamaño final respetando la proporción. Nunca agranda.
+function calcularMedidas(ancho, alto) {
+  const escala = Math.min(1, LADO_MAXIMO / Math.max(ancho, alto));
+  return {
+    ancho: Math.round(ancho * escala),
+    alto: Math.round(alto * escala)
+  };
+}
+
+// Dibuja la imagen en un canvas del tamaño calculado.
+// imageOrientation: "from-image" aplica la orientación EXIF,
+// así las fotos de celular no salen rotadas.
+async function dibujarEnCanvas(archivo) {
+  const mapa = await createImageBitmap(archivo, { imageOrientation: "from-image" });
+  const medidas = calcularMedidas(mapa.width, mapa.height);
+
+  const lienzo = document.createElement("canvas");
+  lienzo.width = medidas.ancho;
+  lienzo.height = medidas.alto;
+  lienzo.getContext("2d").drawImage(mapa, 0, 0, medidas.ancho, medidas.alto);
+
+  mapa.close();
+  return lienzo;
+}
+
+// Devuelve el WebP como blob. Lanza si el navegador no puede generarlo.
+function exportarWebp(lienzo) {
+  return new Promise(function (resolver, rechazar) {
+    lienzo.toBlob(function (blob) {
+      if (blob) resolver(blob);
+      else rechazar(new Error("El navegador no pudo exportar a WebP."));
+    }, "image/webp", CALIDAD_WEBP);
+  });
+}
+
+// Deja la imagen lista para enviar. Si la compresión falla por lo que sea,
+// se manda el archivo original en vez de descartarlo.
+async function prepararParaEnvio(item) {
+  try {
+    const lienzo = await dibujarEnCanvas(item.archivo);
+    const comprimida = await exportarWebp(lienzo);
+
+    item.pesoComprimido = comprimida.size;
+    return {
+      contenido: comprimida,
+      nombre: nombreComoWebp(item.archivo.name),
+      tipo: "image/webp"
+    };
+
+  } catch (error) {
+    item.pesoComprimido = null;
+    return {
+      contenido: item.archivo,
+      nombre: item.archivo.name,
+      tipo: item.archivo.type
+    };
+  }
+}
+
+/* =========================================================
+   9. Envío a Apps Script, una imagen a la vez
+   ========================================================= */
+
+// Convierte un File o Blob a base64 sin el prefijo "data:...;base64,".
+function leerComoBase64(archivo) {
+  return new Promise(function (resolver, rechazar) {
+    const lector = new FileReader();
+    lector.onload = function () {
+      resolver(lector.result.split(",")[1]);
+    };
+    lector.onerror = function () {
+      rechazar(new Error("No se pudo leer el archivo."));
+    };
+    lector.readAsDataURL(archivo);
+  });
+}
+
+// Llama a subirImagen() del servidor y devuelve su respuesta como promesa.
+function llamarAlServidor(carga) {
+  return new Promise(function (resolver) {
+    // Abriendo el archivo fuera de Apps Script no existe google.script.run.
+    if (typeof google === "undefined" || !google.script) {
+      console.log("Sin servidor — aquí iría el envío de:", carga);
+      resolver({ exito: false, mensaje: "Sin conexión con Apps Script (prueba local)." });
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(resolver)
+      .withFailureHandler(function (error) {
+        resolver({ exito: false, mensaje: error.message || "Error del servidor." });
+      })
+      .subirImagen(carga);
+  });
+}
+
+// Comprime, pasa a base64 y sube una sola imagen.
+async function subirUnaImagen(item, datosBase) {
+  try {
+    const listo = await prepararParaEnvio(item);
+    const base64 = await leerComoBase64(listo.contenido);
+
+    return await llamarAlServidor({
+      correo: "",                     // lo resuelve el servidor con la sesión
+      nombre: datosBase.nombre,
+      linea: datosBase.linea,
+      curso: datosBase.curso,
+      nombreArchivo: listo.nombre,
+      tipo: listo.tipo,
+      base64: base64
+    });
+
+  } catch (error) {
+    return { exito: false, mensaje: error.message };
+  }
+}
+
+async function manejarEnvio(evento) {
+  evento.preventDefault();
+  if (subidaEnCurso || !formularioCompleto()) return;
+
+  subidaEnCurso = true;
+  avisoEnvio.textContent = "";
+  actualizarEstadoEnvio();
+  dibujarGrilla(); // deshabilita los botones de quitar
+
+  const datosBase = {
+    nombre: campoNombre.value.trim(),
+    curso: selectCurso.value,
+    // La línea no se pregunta: se deduce del curso elegido.
+    linea: buscarLineaDeCurso(selectCurso.value)
+  };
+
+  const porSubir = imagenesElegidas.filter(faltaSubir);
+  let logradas = 0;
+
+  // De a una: payloads chicos y estado visible imagen por imagen.
+  for (const item of porSubir) {
+    item.estado = "subiendo";
+    item.mensajeEstado = "";
+    repintarMiniatura(item);
+
+    const respuesta = await subirUnaImagen(item, datosBase);
+
+    if (respuesta && respuesta.exito) {
+      item.estado = "subida";
+      item.urlDrive = respuesta.url;
+      item.idDrive = respuesta.id;
+      // El archivo está en Drive aunque la planilla haya fallado.
+      item.errorPlanilla = respuesta.errorPlanilla || "";
+      logradas++;
+    } else {
+      item.estado = "error";
+      item.mensajeEstado = (respuesta && respuesta.mensaje) || "Error desconocido.";
+    }
+
+    repintarMiniatura(item);
+    actualizarResumen();
+  }
+
+  subidaEnCurso = false;
+  actualizarEstadoEnvio();
+  dibujarGrilla();
+
+  const fallidas = porSubir.length - logradas;
+  avisoEnvio.textContent = fallidas === 0
+    ? "Listo: " + logradas + " imagen(es) subida(s) a Drive."
+    : logradas + " subida(s), " + fallidas + " con error. Puedes volver a enviar para reintentar.";
+}
+
+/* =========================================================
+   10. Escuchas de eventos e inicio
+   ========================================================= */
+
+// Si el servidor ya tiene un nombre guardado para este correo, lo rellena.
+// El campo queda editable igual.
+function precargarNombre() {
+  if (typeof google === "undefined" || !google.script) return;
+
+  google.script.run
+    .withSuccessHandler(function (nombre) {
+      if (!nombre || campoNombre.value.trim() !== "") return;
+      campoNombre.value = nombre;
+      actualizarEstadoEnvio();
+    })
+    .obtenerNombre();
+}
+
+selectCurso.addEventListener("change", actualizarEstadoEnvio);
+campoNombre.addEventListener("input", actualizarEstadoEnvio);
+
+inputImagenes.addEventListener("change", function (evento) {
+  agregarImagenes(evento.target.files);
+  // Limpiamos el input para poder volver a elegir el mismo archivo si se quitó.
+  evento.target.value = "";
+});
+
+formulario.addEventListener("submit", manejarEnvio);
+
+cargarCursos();
+precargarNombre();
+actualizarEstadoEnvio();
+</script>
+
+</body>
+</html>

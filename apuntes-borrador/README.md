@@ -70,3 +70,30 @@ cada archivo necsitamos saber:
 lunes mandar una propuesta
 
 - referente: mark lombardi
+
+## reu 2
+
+que se puedan ver en grande una sin tener q verlo 1 a la vez.
+
+revisar que no se baje la claridad al comprimir
+
+que se vean las 3 categorías a la vez
+
+que es lo que le gusta a leonor del miró:
+
+- poder caercar y alejar, en un gran canvas
+- poder jugar con las flechas
+- accesi fácil al drive
+- cada categorías va a tener varios textos.
+
+la proxima semana queremos emepzar adecri que suban las imagenes. Entonces hay q darle proridad al formulario con el excel.
+
+**revisar**
+
+como lo hacemos para q los estudiantes no rellenen otras carpetas
+
+dentro de la carpeta del estudiante, carpeta por linea.  las carpetas son visibles para todes pero no editor
+
+cada persona tiene su visualizador, ver lo del login
+
+partir con forms y excel y ver mejorar prop grafica.
