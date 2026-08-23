@@ -6,6 +6,8 @@ ni librerías externas.
 
 La ventana de subida dura un mes y cada estudiante puede volver las veces que quiera.
 
+[LINK A FORMULARIO](https://script.google.com/a/macros/mail.udp.cl/s/AKfycbx3_ijnWNx8wBvyiwpbR19mb4PNf5CXS_vfhUL2nr0yeWt-MvGaFXsUPy_xhg1WF_R6/exec)
+
 ## Enlaces
 
 - [Carpeta de Drive](https://drive.google.com/drive/folders/1TfjGEABWqdrUGu20V9WQAUn3FTTyGnmh?usp=sharing) — donde se guardan las imágenes
