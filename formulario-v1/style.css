@@ -1,0 +1,488 @@
+  /* ---------- Base ---------- */
+  :root {
+    --fondo: #f5f5f5;
+    --tinta: #1a1a1a;
+    --tinta-media: #555555;
+    --tinta-suave: #8a8a8a;
+    --borde: #1a1a1a;
+    --borde-tenue: #c9c9c9;
+    --papel: #fdfdfd;
+    --radio: 3px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 3rem 1.25rem 5rem;
+    background: var(--fondo);
+    color: var(--tinta);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .contenedor {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  /* ---------- Encabezado ---------- */
+  .encabezado {
+    border-bottom: 1px solid var(--borde);
+    padding-bottom: 1.5rem;
+    margin-bottom: 3rem;
+  }
+
+  .encabezado h1 {
+    margin: 0 0 0.5rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .encabezado p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--tinta-media);
+    max-width: 46ch;
+  }
+
+  /* ---------- Campos ---------- */
+  .campo {
+    margin-bottom: 2.5rem;
+  }
+
+  .campo > label,
+  .campo > .rotulo {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.625rem;
+  }
+
+  .ayuda {
+    font-size: 0.8125rem;
+    color: var(--tinta-suave);
+    margin: 0.5rem 0 0;
+  }
+
+  input[type="text"],
+  select {
+    width: 100%;
+    padding: 0.75rem 0.875rem;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--tinta);
+    background-color: var(--papel);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  select {
+    /* Flecha dibujada con gradientes: sin imágenes externas y en escala de grises */
+    background-image: linear-gradient(45deg, transparent 50%, var(--tinta) 50%),
+                      linear-gradient(135deg, var(--tinta) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 2.5rem;
+  }
+
+  input[type="text"]:focus,
+  select:focus,
+  button:focus-visible,
+  .boton-archivo:focus-within {
+    outline: 2px solid var(--tinta);
+    outline-offset: 2px;
+  }
+
+  /* Campos bloqueados mientras se sube una tanda */
+  input[type="text"]:disabled,
+  select:disabled,
+  input[type="text"].bloqueado {
+    color: var(--tinta-suave);
+    background-color: #ededed;
+    border-color: var(--borde-tenue);
+    cursor: not-allowed;
+  }
+
+  .boton-archivo:has(input:disabled) {
+    color: var(--tinta-suave);
+    background: #ededed;
+    border-color: var(--borde-tenue);
+    cursor: not-allowed;
+  }
+
+  /* Los grupos del select llevan el nombre de la línea curricular */
+  optgroup {
+    font-weight: 600;
+    font-style: normal;
+    color: var(--tinta);
+  }
+
+  optgroup option {
+    font-weight: 400;
+  }
+
+  /* ---------- Selector de archivos ---------- */
+  .boton-archivo {
+    display: inline-block;
+    position: relative;
+    padding: 0.75rem 1.25rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--papel);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .boton-archivo:hover { background: #ebebeb; }
+
+  .boton-archivo input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ---------- Grilla de previsualizaciones ---------- */
+  .grilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .miniatura {
+    position: relative;
+    margin: 0;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--papel);
+    overflow: hidden;
+  }
+
+  .miniatura.rechazada {
+    border-style: dashed;
+    border-color: var(--tinta-suave);
+  }
+
+  .miniatura .lienzo {
+    aspect-ratio: 1 / 1;
+    background: #e4e4e4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--borde-tenue);
+  }
+
+  .miniatura.rechazada .lienzo {
+    background: repeating-linear-gradient(
+      45deg, #e8e8e8, #e8e8e8 6px, #dedede 6px, #dedede 12px
+    );
+  }
+
+  .miniatura .lienzo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .miniatura.rechazada .lienzo img { opacity: 0.3; }
+
+  .sin-vista {
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tinta-suave);
+    text-align: center;
+    padding: 0 0.5rem;
+  }
+
+  .miniatura .datos {
+    padding: 0.625rem 0.75rem 0.75rem;
+  }
+
+  .miniatura .nombre-archivo {
+    font-size: 0.75rem;
+    line-height: 1.35;
+    word-break: break-all;
+    margin: 0 0 0.25rem;
+  }
+
+  .miniatura .peso {
+    font-size: 0.6875rem;
+    color: var(--tinta-suave);
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .miniatura .motivo,
+  .miniatura .estado {
+    margin: 0.5rem 0 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--borde-tenue);
+    font-size: 0.6875rem;
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--tinta);
+  }
+
+  /* Estados de subida, diferenciados sin color */
+  .miniatura.subiendo .estado { font-weight: 400; font-style: italic; color: var(--tinta-media); }
+  .miniatura.subiendo .lienzo img { opacity: 0.4; }
+  .miniatura.subida .lienzo img { opacity: 0.55; }
+  .miniatura.subida { border-color: var(--borde-tenue); }
+  .miniatura.con-error { border-style: dashed; }
+
+  .quitar {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--papel);
+    color: var(--tinta);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .quitar:hover { background: var(--tinta); color: var(--papel); }
+
+  .quitar:disabled {
+    color: var(--tinta-suave);
+    border-color: var(--borde-tenue);
+    cursor: not-allowed;
+  }
+
+  .quitar:disabled:hover { background: var(--papel); color: var(--tinta-suave); }
+
+  /* ---------- Resumen y envío ---------- */
+  .resumen {
+    margin-top: 1.25rem;
+    font-size: 0.8125rem;
+    color: var(--tinta-media);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pie {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--borde);
+  }
+
+  .enviar {
+    width: 100%;
+    padding: 1rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--papel);
+    background: var(--tinta);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    cursor: pointer;
+  }
+
+  .enviar:disabled {
+    color: var(--tinta-suave);
+    background: transparent;
+    border-color: var(--borde-tenue);
+    cursor: not-allowed;
+  }
+
+  .aviso-envio {
+    margin: 1rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--tinta-media);
+    min-height: 1.2em;
+  }
+
+  /* ---------- Bloque de curso ---------- */
+  .bloque {
+    position: relative;
+    /* Sin esto el fieldset no deja que la grilla se encoja en celular */
+    min-width: 0;
+    margin: 0 0 1.5rem;
+    padding: 2rem 1.75rem 0.5rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--papel);
+  }
+
+  .bloque-titulo {
+    padding: 0 0.5rem;
+    margin-left: -0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .bloque-quitar {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--papel);
+    color: var(--tinta);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .bloque-quitar:hover { background: var(--tinta); color: var(--papel); }
+
+  .bloque-quitar:disabled {
+    color: var(--tinta-suave);
+    border-color: var(--borde-tenue);
+    cursor: not-allowed;
+  }
+
+  .bloque-quitar:disabled:hover { background: var(--papel); color: var(--tinta-suave); }
+
+  /* Aparece cuando el bloque tiene imágenes pero no tiene curso elegido */
+  .aviso-curso {
+    margin: 0.75rem 0 0;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--borde);
+    border-left-width: 4px;
+    border-radius: var(--radio);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .agregar-bloque {
+    width: 100%;
+    padding: 0.875rem;
+    margin-bottom: 1rem;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--tinta);
+    background: transparent;
+    border: 1px dashed var(--borde-tenue);
+    border-radius: var(--radio);
+    cursor: pointer;
+  }
+
+  .agregar-bloque:hover { background: #ebebeb; border-color: var(--borde); }
+
+  .agregar-bloque:disabled {
+    color: var(--tinta-suave);
+    cursor: not-allowed;
+  }
+
+  /* ---------- Barra de avance ---------- */
+  .barra {
+    height: 6px;
+    margin-top: 1rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    overflow: hidden;
+  }
+
+  .barra-avance {
+    height: 100%;
+    width: 0;
+    background: var(--tinta);
+    transition: width 0.25s ease;
+  }
+
+  /* ---------- Pantalla de gracias ---------- */
+  [hidden] { display: none !important; }
+
+  .gracias {
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--papel);
+    padding: 3rem 2rem;
+    text-align: center;
+  }
+
+  .gracias h2 {
+    margin: 0 0 1rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .gracias-detalle {
+    margin: 0 0 2rem;
+    font-size: 0.875rem;
+    color: var(--tinta-media);
+  }
+
+  .gracias-enlace {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--tinta);
+    text-decoration: none;
+  }
+
+  .gracias-enlace:hover { background: #ebebeb; }
+
+  .gracias-nota {
+    margin: 1.5rem 0 0;
+    font-size: 0.75rem;
+    color: var(--tinta-suave);
+  }
+
+  .gracias-boton {
+    margin-top: 2.5rem;
+    padding: 0.625rem 1.25rem;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--tinta);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--borde);
+    border-radius: 0;
+    cursor: pointer;
+  }
+
+  .gracias-boton:hover { background: #ebebeb; }
+
+  /* ---------- Celular ---------- */
+  @media (max-width: 480px) {
+    body { padding: 2rem 1rem 4rem; }
+    .encabezado { margin-bottom: 2.25rem; }
+    .campo { margin-bottom: 2rem; }
+    .grilla { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.75rem; }
+    .boton-archivo { display: block; text-align: center; }
+    .bloque { padding: 1.75rem 1rem 0.5rem; }
+    .gracias { padding: 2.5rem 1.25rem; }
+    .gracias-enlace { display: block; }
+  }
