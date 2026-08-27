@@ -17,8 +17,8 @@
 
     <header class="encabezado">
       <h1>Archivo de prácticas</h1>
-      <p>Sube imágenes de tus trabajos indicando el curso al que pertenecen. Puedes volver las veces que quieras durante
-        el mes de subida.</p>
+      <p>Sube imágenes y textos de tus trabajos indicando el curso al que pertenecen. Puedes volver las veces que
+        quieras durante el mes de subida.</p>
     </header>
 
     <form id="formulario" novalidate>
@@ -65,7 +65,7 @@
           </select>
 
           <p class="aviso-curso" hidden>
-            Debes elegir el curso para subir estas imágenes.
+            Debes elegir el curso para subir este material.
           </p>
         </div>
 
@@ -81,8 +81,21 @@
           <p class="ayuda">Formatos PNG, JPG o JPEG. Máximo 10&nbsp;MB por imagen.</p>
 
           <div class="grilla"></div>
-          <p class="resumen" aria-live="polite"></p>
         </div>
+
+        <div class="campo">
+          <span class="rotulo">Textos</span>
+
+          <p class="ayuda">Una frase o un extracto. Puedes dejar el campo vacío
+            si solo subes imágenes.</p>
+
+          <!-- Los textos se agregan y quitan desde el script. -->
+          <div class="textos"></div>
+
+          <button type="button" class="agregar-texto">+ Añadir un texto</button>
+        </div>
+
+        <p class="resumen" aria-live="polite"></p>
       </fieldset>
     </template>
 

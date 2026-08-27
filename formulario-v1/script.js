@@ -2,34 +2,37 @@
    1. Estructura curricular
    Editar aquí para agregar, quitar o renombrar cursos.
    ========================================================= */
+// El código es el de la asignatura en la Malla Curricular Plan 3.0 de Artes
+// Visuales. Solo se usa para nombrar archivos: al estudiante siempre se le
+// muestra el nombre del curso, nunca el código.
 const LINEAS_CURRICULARES = {
     "Talleres": [
-        { nombre: "Taller de operaciones y procedimientos visuales", semestre: "S1-S2" },
-        { nombre: "Taller de prácticas artísticas I", semestre: "S3" },
-        { nombre: "Taller de prácticas artísticas II", semestre: "S4" }
+        { nombre: "Taller de operaciones y procedimientos visuales", semestre: "S1-S2", codigo: "ART03111" },
+        { nombre: "Taller de prácticas artísticas I", semestre: "S3", codigo: "ART03211" },
+        { nombre: "Taller de prácticas artísticas II", semestre: "S4", codigo: "ART03221" }
     ],
     "Estudios visuales": [
-        { nombre: "Introducción a las vanguardias artísticas", semestre: "S1" },
-        { nombre: "Introducción al arte contemporáneo", semestre: "S2" },
-        { nombre: "Arte contemporáneo en Chile y Latinoamérica", semestre: "S3" },
-        { nombre: "Teoría de la imagen", semestre: "S4" }
+        { nombre: "Introducción a las vanguardias artísticas", semestre: "S1", codigo: "ART03112" },
+        { nombre: "Introducción al arte contemporáneo", semestre: "S2", codigo: "ART03122" },
+        { nombre: "Arte contemporáneo en Chile y Latinoamérica", semestre: "S3", codigo: "ART03212" },
+        { nombre: "Teoría de la imagen", semestre: "S4", codigo: "ART03222" }
     ],
     "Lenguajes artísticos": [
-        { nombre: "Dibujo y observación", semestre: "S1" },
-        { nombre: "Dibujo y observación II", semestre: "S2" },
-        { nombre: "Técnicas escultóricas", semestre: "S2" },
-        { nombre: "Técnicas pictóricas", semestre: "S3" },
-        { nombre: "Lenguajes escultóricos", semestre: "S3" },
-        { nombre: "Lenguajes pictóricos", semestre: "S4" }
+        { nombre: "Dibujo y observación I", semestre: "S1", codigo: "ART03113" },
+        { nombre: "Dibujo y observación II", semestre: "S2", codigo: "ART03123" },
+        { nombre: "Técnicas escultóricas", semestre: "S2", codigo: "ART03124" },
+        { nombre: "Técnicas pictóricas", semestre: "S3", codigo: "ART03213" },
+        { nombre: "Lenguajes escultóricos", semestre: "S3", codigo: "ART03214" },
+        { nombre: "Lenguajes pictóricos", semestre: "S4", codigo: "ART03223" }
     ],
     "Imagen y tecnología": [
-        { nombre: "Medios gráficos", semestre: "S1" },
-        { nombre: "Medios digitales", semestre: "S2" },
-        { nombre: "Imagen fija", semestre: "S3" },
-        { nombre: "Imagen en movimiento", semestre: "S4" }
+        { nombre: "Medios gráficos", semestre: "S1", codigo: "ART03114" },
+        { nombre: "Medios digitales", semestre: "S2", codigo: "ART03125" },
+        { nombre: "Imagen fija", semestre: "S3", codigo: "ART03215" },
+        { nombre: "Imagen en movimiento", semestre: "S4", codigo: "ART03224" }
     ],
     "Gestión": [
-        { nombre: "Circuitos artísticos", semestre: "S1" }
+        { nombre: "Circuitos artísticos", semestre: "S1", codigo: "ART03115" }
     ]
 };
 
@@ -44,6 +47,9 @@ const PESO_MAXIMO_BYTES = 10 * 1024 * 1024; // 10 MB por imagen
 const LADO_MAXIMO = 2000;      // píxeles del lado mayor
 const CALIDAD_WEBP = 0.85;
 
+// Tope de un texto. El servidor lo vuelve a revisar.
+const TEXTO_MAXIMO = 2000;     // caracteres
+
 /* =========================================================
    3. Estado y referencias del DOM
    ========================================================= */
@@ -56,6 +62,10 @@ let ultimoIdBloque = 0;
 // Imágenes de un bloque. Cada una:
 // { id, archivo, valido, motivo, urlVista, estado, mensajeEstado, pesoComprimido, nodo }
 // estado: "pendiente" | "subiendo" | "subida" | "error"
+//
+// Textos de un bloque. Cada uno:
+// { id, campo, nodo, estadoNodo, botonQuitar, estado, mensajeEstado, nombreEnDrive }
+// El contenido no se copia al estado: vive en el textarea hasta que se envía.
 let ultimoId = 0;
 
 // Bloquea el formulario mientras se está subiendo una tanda.
@@ -122,6 +132,20 @@ function buscarLineaDeCurso(nombreCurso) {
     return "";
 }
 
+// Devuelve el código de asignatura de un curso, o "" si no tiene.
+// El servidor lo usa para nombrar el archivo; el estudiante nunca lo ve.
+function buscarCodigoDeCurso(nombreCurso) {
+    const lineas = Object.keys(LINEAS_CURRICULARES);
+
+    for (let i = 0; i < lineas.length; i++) {
+        const encontrado = LINEAS_CURRICULARES[lineas[i]].find(function (curso) {
+            return curso.nombre === nombreCurso;
+        });
+        if (encontrado) return encontrado.codigo || "";
+    }
+    return "";
+}
+
 /* =========================================================
    5. Bloques de curso
    Cada bloque es una copia de la plantilla con su propio
@@ -143,7 +167,10 @@ function crearBloque() {
         titulo: nodo.querySelector(".bloque-titulo"),
         botonQuitar: nodo.querySelector(".bloque-quitar"),
         avisoCurso: nodo.querySelector(".aviso-curso"),
-        imagenes: []
+        listaTextos: nodo.querySelector(".textos"),
+        botonAgregarTexto: nodo.querySelector(".agregar-texto"),
+        imagenes: [],
+        textos: []
     };
 
     // La etiqueta necesita un id único porque hay varios bloques a la vez.
@@ -162,6 +189,8 @@ function crearBloque() {
         // Limpiamos el input para poder volver a elegir el mismo archivo si se quitó.
         evento.target.value = "";
     });
+
+    bloque.botonAgregarTexto.addEventListener("click", function () { agregarTexto(bloque); });
 
     bloque.botonQuitar.addEventListener("click", function () { quitarBloque(bloque); });
 
@@ -198,10 +227,12 @@ function refrescarBloques() {
         bloque.botonQuitar.disabled = subidaEnCurso;
         bloque.selectCurso.disabled = subidaEnCurso;
         bloque.inputArchivos.disabled = subidaEnCurso;
+        bloque.botonAgregarTexto.disabled = subidaEnCurso;
+        bloque.textos.forEach(repintarTexto);
 
-        // Con imágenes puestas y sin curso, el bloque no se puede enviar: hay que decirlo.
+        // Con material puesto y sin curso, el bloque no se puede enviar: hay que decirlo.
         bloque.avisoCurso.hidden =
-            bloque.selectCurso.value !== "" || porSubirEn(bloque).length === 0;
+            bloque.selectCurso.value !== "" || porSubirEnTotal(bloque) === 0;
     });
 }
 
@@ -298,6 +329,132 @@ function quitarImagen(bloque, id) {
     dibujarGrilla(bloque);
     actualizarEstadoEnvio();
 }
+
+/* =========================================================
+   6b. Textos
+   Un texto es un <textarea> con su botón de quitar. El contenido
+   vive en el campo, no en una copia: así se puede corregir hasta
+   el momento de enviar y no hay nada que mantener sincronizado.
+   ========================================================= */
+
+function agregarTexto(bloque) {
+    const item = {
+        id: ++ultimoId,
+        campo: null,
+        nodo: null,
+        estadoNodo: null,
+        botonQuitar: null,
+        estado: "pendiente",
+        mensajeEstado: "",
+        nombreEnDrive: ""
+    };
+
+    bloque.textos.push(item);
+    bloque.listaTextos.appendChild(crearCampoTexto(bloque, item));
+    item.campo.focus();
+
+    actualizarResumen(bloque);
+    actualizarEstadoEnvio();
+}
+
+function quitarTexto(bloque, id) {
+    const indice = bloque.textos.findIndex(function (item) { return item.id === id; });
+    if (indice === -1) return;
+
+    bloque.textos[indice].nodo.remove();
+    bloque.textos.splice(indice, 1);
+
+    avisoEnvio.textContent = "";
+    actualizarResumen(bloque);
+    actualizarEstadoEnvio();
+}
+
+// Lo que el estudiante escribió, sin espacios sobrantes.
+function contenidoDe(item) {
+    return item.campo ? item.campo.value.trim() : "";
+}
+
+function crearCampoTexto(bloque, item) {
+    const caja = document.createElement("div");
+    caja.className = "texto";
+
+    const campo = document.createElement("textarea");
+    campo.className = "texto-campo";
+    campo.rows = 3;
+    campo.maxLength = TEXTO_MAXIMO;
+    campo.placeholder = "Escribe o pega el texto";
+    campo.setAttribute("aria-label", "Texto para este curso");
+
+    // Un campo en blanco no es un error: simplemente no se sube.
+    campo.addEventListener("input", function () {
+        actualizarResumen(bloque);
+        actualizarEstadoEnvio();
+    });
+
+    const estado = document.createElement("p");
+    estado.className = "texto-estado";
+    estado.hidden = true;
+
+    item.campo = campo;
+    item.nodo = caja;
+    item.estadoNodo = estado;
+
+    caja.appendChild(campo);
+    caja.appendChild(crearBotonQuitarTexto(bloque, item));
+    caja.appendChild(estado);
+
+    repintarTexto(item);
+    return caja;
+}
+
+function crearBotonQuitarTexto(bloque, item) {
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.className = "quitar";
+    boton.textContent = "×";
+    boton.title = "Quitar este texto";
+    boton.setAttribute("aria-label", "Quitar este texto");
+    boton.addEventListener("click", function () { quitarTexto(bloque, item.id); });
+
+    item.botonQuitar = boton;
+    return boton;
+}
+
+// El textarea no se vuelve a crear nunca: eso borraría lo escrito.
+// Solo se ajustan la clase, el bloqueo y la línea de estado.
+function repintarTexto(item) {
+    if (!item.nodo) return;
+
+    item.nodo.className = "texto " + claseDeTexto(item);
+
+    // Un texto ya guardado no se edita: el archivo en Drive no cambiaría.
+    item.campo.disabled = subidaEnCurso || item.estado === "subida";
+    item.botonQuitar.disabled = subidaEnCurso;
+
+    const mensaje = textoDeEstadoTexto(item);
+    item.estadoNodo.textContent = mensaje;
+    item.estadoNodo.hidden = mensaje === "";
+}
+
+function claseDeTexto(item) {
+    if (item.estado === "subiendo") return "subiendo";
+    if (item.estado === "subida") return "subida";
+    if (item.estado === "error") return "con-error";
+    return "";
+}
+
+function textoDeEstadoTexto(item) {
+    if (item.estado === "subiendo") return "Guardando…";
+    if (item.estado === "error") return "Error — " + item.mensajeEstado;
+
+    if (item.estado === "subida") {
+        return item.errorPlanilla
+            ? "✓ Guardado como " + item.nombreEnDrive + ", pero no quedó en la planilla"
+            : "✓ Guardado como " + item.nombreEnDrive;
+    }
+    return "";
+}
+
 
 /* =========================================================
    7. Grilla de previsualizaciones
@@ -428,23 +585,26 @@ function crearBotonQuitar(bloque, item) {
 }
 
 function actualizarResumen(bloque) {
-    if (bloque.imagenes.length === 0) {
-        bloque.resumen.textContent = "";
-        return;
-    }
-
     const partes = [];
+
     const pendientes = contarPorEstado(bloque, "pendiente");
     const subidas = contarPorEstado(bloque, "subida");
     const conError = contarPorEstado(bloque, "error");
     const rechazadas = bloque.imagenes.filter(function (item) { return !item.valido; }).length;
 
-    if (pendientes > 0) partes.push(pendientes + " por subir");
-    if (subidas > 0) partes.push(subidas + " subida(s)");
+    if (pendientes > 0) partes.push(pendientes + " imagen(es) por subir");
+    if (subidas > 0) partes.push(subidas + " imagen(es) subida(s)");
     if (conError > 0) partes.push(conError + " con error, se reintentará");
     if (rechazadas > 0) partes.push(rechazadas + " rechazada(s), no se enviarán");
 
-    bloque.resumen.textContent = partes.join(" · ") + ".";
+    // Los textos en blanco no se cuentan: no se van a subir.
+    const textosPorSubir = textosPorSubirEn(bloque).length;
+    const textosGuardados = contarTextosPorEstado(bloque, "subida");
+
+    if (textosPorSubir > 0) partes.push(textosPorSubir + " texto(s) por subir");
+    if (textosGuardados > 0) partes.push(textosGuardados + " texto(s) guardado(s)");
+
+    bloque.resumen.textContent = partes.length > 0 ? partes.join(" · ") + "." : "";
 }
 
 /* =========================================================
@@ -467,21 +627,46 @@ function porSubirEn(bloque) {
     return bloque.imagenes.filter(faltaSubir);
 }
 
-function contarPorSubir() {
-    return todasLasImagenes().filter(faltaSubir).length;
+// Cuenta textos con contenido del bloque que están en un estado dado.
+function contarTextosPorEstado(bloque, estado) {
+    return bloque.textos.filter(function (item) {
+        return contenidoDe(item) !== "" && item.estado === estado;
+    }).length;
 }
 
-// Un bloque está listo cuando tiene curso elegido e imágenes por subir.
+// Un textarea vacío se ignora. Los que fallaron se reintentan, igual que las imágenes.
+function faltaSubirTexto(item) {
+    return contenidoDe(item) !== "" &&
+        (item.estado === "pendiente" || item.estado === "error");
+}
+
+function textosPorSubirEn(bloque) {
+    return bloque.textos.filter(faltaSubirTexto);
+}
+
+// Todo lo que falta subir del bloque, sea imagen o texto.
+function porSubirEnTotal(bloque) {
+    return porSubirEn(bloque).length + textosPorSubirEn(bloque).length;
+}
+
+function contarPorSubir() {
+    return bloques.reduce(function (cuenta, bloque) {
+        return cuenta + porSubirEnTotal(bloque);
+    }, 0);
+}
+
+// Un bloque está listo cuando tiene curso elegido y algo por subir:
+// imágenes, textos o ambos. No se exige ninguno de los dos en particular.
 function bloqueListo(bloque) {
-    return bloque.selectCurso.value !== "" && porSubirEn(bloque).length > 0;
+    return bloque.selectCurso.value !== "" && porSubirEnTotal(bloque) > 0;
 }
 
 function formularioCompleto() {
     if (campoNombre.value.trim() === "") return false;
 
-    // Ningún bloque puede quedar con imágenes sin curso: se subirían a ninguna parte.
+    // Ningún bloque puede quedar con material sin curso: se subiría a ninguna parte.
     const sinCurso = bloques.some(function (bloque) {
-        return bloque.selectCurso.value === "" && porSubirEn(bloque).length > 0;
+        return bloque.selectCurso.value === "" && porSubirEnTotal(bloque) > 0;
     });
 
     return !sinCurso && bloques.some(bloqueListo);
@@ -588,11 +773,13 @@ function leerComoBase64(archivo) {
 }
 
 // Llama a subirImagen() del servidor y devuelve su respuesta como promesa.
-function llamarAlServidor(carga) {
+// "funcion" es el nombre de la función de code.gs que se va a ejecutar:
+// subirImagen o subirTexto.
+function llamarAlServidor(funcion, carga) {
     return new Promise(function (resolver) {
         // Abriendo el archivo fuera de Apps Script no existe google.script.run.
         if (typeof google === "undefined" || !google.script) {
-            console.log("Sin servidor — aquí iría el envío de:", carga);
+            console.log("Sin servidor — aquí iría el envío de:", funcion, carga);
             resolver({ exito: false, mensaje: "Sin conexión con Apps Script (prueba local)." });
             return;
         }
@@ -601,8 +788,7 @@ function llamarAlServidor(carga) {
             .withSuccessHandler(resolver)
             .withFailureHandler(function (error) {
                 resolver({ exito: false, mensaje: error.message || "Error del servidor." });
-            })
-            .subirImagen(carga);
+            })[funcion](carga);
     });
 }
 
@@ -612,11 +798,12 @@ async function subirUnaImagen(item, datosBase) {
         const listo = await prepararParaEnvio(item);
         const base64 = await leerComoBase64(listo.contenido);
 
-        return await llamarAlServidor({
+        return await llamarAlServidor("subirImagen", {
             correo: "",                     // lo resuelve el servidor con la sesión
             nombre: datosBase.nombre,
             linea: datosBase.linea,
             curso: datosBase.curso,
+            codigoCurso: datosBase.codigoCurso,
             nombreArchivo: listo.nombre,
             tipo: listo.tipo,
             base64: base64
@@ -625,6 +812,17 @@ async function subirUnaImagen(item, datosBase) {
     } catch (error) {
         return { exito: false, mensaje: error.message };
     }
+}
+
+// Un texto no se comprime ni se pasa a base64: va tal cual y sube al instante.
+function subirUnTexto(item, datosBase) {
+    return llamarAlServidor("subirTexto", {
+        nombre: datosBase.nombre,
+        linea: datosBase.linea,
+        curso: datosBase.curso,
+        codigoCurso: datosBase.codigoCurso,
+        contenido: contenidoDe(item)
+    });
 }
 
 async function manejarEnvio(evento) {
@@ -653,8 +851,9 @@ async function manejarEnvio(evento) {
         const datosBase = {
             nombre: nombre,
             curso: bloque.selectCurso.value,
-            // La línea no se pregunta: se deduce del curso elegido.
-            linea: buscarLineaDeCurso(bloque.selectCurso.value)
+            // Ni la línea ni el código se preguntan: se deducen del curso.
+            linea: buscarLineaDeCurso(bloque.selectCurso.value),
+            codigoCurso: buscarCodigoDeCurso(bloque.selectCurso.value)
         };
 
         // Los nombres con los que quedaron guardados, para el correo.
@@ -692,6 +891,34 @@ async function manejarEnvio(evento) {
             actualizarResumen(bloque);
         }
 
+        // Los textos del mismo bloque van después, a la misma carpeta.
+        for (const item of textosPorSubirEn(bloque)) {
+            item.estado = "subiendo";
+            item.mensajeEstado = "";
+            repintarTexto(item);
+
+            const respuesta = await subirUnTexto(item, datosBase);
+
+            if (respuesta && respuesta.exito) {
+                item.estado = "subida";
+                item.urlDrive = respuesta.url;
+                item.errorPlanilla = respuesta.errorPlanilla || "";
+                item.nombreEnDrive = respuesta.nombreArchivo || "";
+                archivosDelCurso.push(item.nombreEnDrive);
+                urlCarpetaCurso = respuesta.urlCarpetaCurso || urlCarpetaCurso;
+                logradasAqui++;
+                logradas++;
+            } else {
+                item.estado = "error";
+                item.mensajeEstado = (respuesta && respuesta.mensaje) || "Error desconocido.";
+            }
+
+            hechas++;
+            mostrarAvance(hechas, total);
+            repintarTexto(item);
+            actualizarResumen(bloque);
+        }
+
         if (logradasAqui > 0) {
             detalles.push({
                 linea: datosBase.linea,
@@ -723,10 +950,10 @@ async function manejarEnvio(evento) {
     }
 
     avisoEnvio.textContent =
-        logradas + " subida(s), " + fallidas + " con error. Puedes volver a enviar para reintentar.";
+        logradas + " guardado(s), " + fallidas + " con error. Puedes volver a enviar para reintentar.";
 }
 
-// Barra y porcentaje. No mide bytes: cuenta imágenes terminadas.
+// Barra y porcentaje. No mide bytes: cuenta archivos terminados.
 function mostrarAvance(hechas, total) {
     const porcentaje = total === 0 ? 0 : Math.round((hechas / total) * 100);
 
@@ -763,13 +990,13 @@ function pedirAvisoPorCorreo(resumen) {
 }
 
 function mostrarGracias(detalles, cantidad, cierre) {
-    // Un curso por línea, con cuántas imágenes quedaron en cada uno.
+    // Un curso por línea, con cuántos archivos quedaron en cada uno.
     const porCurso = detalles.map(function (detalle) {
         return detalle.curso + " (" + detalle.cantidad + ")";
     }).join(", ");
 
     graciasDetalle.textContent =
-        "Se subieron " + cantidad + " imagen(es): " + porCurso + ".";
+        "Se guardaron " + cantidad + " archivo(s): " + porCurso + ".";
 
     // El enlace a la carpeta solo aparece si el servidor lo pudo resolver.
     if (cierre && cierre.urlCarpeta) {
@@ -781,7 +1008,7 @@ function mostrarGracias(detalles, cantidad, cierre) {
 
     graciasNota.textContent = (cierre && cierre.exito)
         ? "Te enviamos un correo con el enlace a tu carpeta."
-        : "No pudimos enviarte el correo de aviso, pero tus imágenes sí quedaron guardadas.";
+        : "No pudimos enviarte el correo de aviso, pero tus trabajos sí quedaron guardados.";
 
     // El motivo real va a la consola: al estudiante no le sirve, a nosotros sí.
     if (cierre && !cierre.exito) {

@@ -9,13 +9,20 @@ const DRIVE_FOLDER_ID = '1TfjGEABWqdrUGu20V9WQAUn3FTTyGnmh';
 // Planilla donde se registra cada imagen subida.
 const SPREADSHEET_ID = '1sCBmSOlLlYEPLNkS0hVT8QOzIi0fc7BENiqfaVwwoZI';
 
-// Columnas de la planilla, en orden.
+// Columnas de la planilla, en orden. Las nuevas van siempre al final:
+// appendRow escribe por posición, así que insertar una al medio desalinearía
+// todas las filas ya escritas.
 const ENCABEZADOS = [
-  'fechaSubida', 'correo', 'nombre',
-  'linea', 'linkCarpetaLinea',
-  'curso', 'linkCarpetaCurso',
-  'nombreArchivo', 'linkArchivo'
+  'fecha', 'correo', 'nombre',
+  'linea', 'folderLinea',
+  'curso', 'folderCurso',
+  'nombreArchivo', 'linkArchivo',
+  'tipo', 'contenido'
 ];
+
+// Tope de un texto. Se revisa acá además del maxlength del navegador:
+// el cliente puede mentir.
+const TEXTO_MAXIMO = 2000;
 
 
 /* =========================================================
@@ -73,7 +80,7 @@ function resolverNombre(nombreDelCliente) {
 
 /* =========================================================
    3. Subida de una imagen
-   Recibe: { correo, nombre, linea, curso, nombreArchivo, tipo, base64 }
+   Recibe: { correo, nombre, linea, curso, codigoCurso, nombreArchivo, tipo, base64 }
    Devuelve: { exito: true, id, url, errorPlanilla } o { exito: false, mensaje }
    ========================================================= */
 
@@ -98,7 +105,8 @@ function subirImagen(datos) {
 
     // El archivo se renombra: el que manda el cliente solo aporta la extensión.
     const nombreArchivo = construirNombreArchivo(
-      carpetas.curso, nombreEstudiante, datos.curso, datos.nombreArchivo);
+      carpetas.curso, nombreEstudiante, datos.codigoCurso, datos.curso,
+      extensionDe(datos.nombreArchivo));
 
     // Del base64 al archivo en Drive. No se tocan los permisos:
     // el archivo hereda los de la carpeta.
@@ -107,17 +115,65 @@ function subirImagen(datos) {
     const archivo = carpetas.curso.createFile(blob);
 
     // El archivo ya está guardado: si la planilla falla, no se pierde la subida.
-    const errorPlanilla = registrarEnPlanilla([
-      new Date(),
-      correo,
-      nombreEstudiante,
-      datos.linea,
-      carpetas.linea.getUrl(),
-      datos.curso,
-      carpetas.curso.getUrl(),
-      nombreArchivo,
-      archivo.getUrl()
-    ]);
+    const errorPlanilla = registrarEnPlanilla(filaDeRegistro(
+      correo, nombreEstudiante, datos, carpetas,
+      nombreArchivo, archivo.getUrl(), 'imagen', ''));
+
+    return {
+      exito: true,
+      id: archivo.getId(),
+      url: archivo.getUrl(),
+      nombreArchivo: nombreArchivo,
+      urlCarpetaCurso: carpetas.curso.getUrl(),
+      errorPlanilla: errorPlanilla
+    };
+
+  } catch (error) {
+    return { exito: false, mensaje: error.message };
+  }
+}
+
+
+/* =========================================================
+   3b. Subida de un texto
+   Recibe: { nombre, linea, curso, codigoCurso, contenido }
+   El .txt queda en la misma carpeta que las imágenes del curso.
+   ========================================================= */
+
+function subirTexto(datos) {
+  try {
+    const correo = Session.getActiveUser().getEmail();
+
+    const nombreEstudiante = resolverNombre(datos.nombre);
+    if (!nombreEstudiante) {
+      return { exito: false, mensaje: 'Falta el nombre del estudiante.' };
+    }
+
+    const contenido = (datos.contenido || '').trim();
+    if (!contenido) {
+      return { exito: false, mensaje: 'El texto llegó vacío.' };
+    }
+    if (contenido.length > TEXTO_MAXIMO) {
+      return { exito: false, mensaje: 'El texto pasa de ' + TEXTO_MAXIMO + ' caracteres.' };
+    }
+    if (!datos.linea || !datos.curso) {
+      return { exito: false, mensaje: 'Falta la línea o el curso.' };
+    }
+
+    const carpetas = prepararCarpetas(nombreEstudiante, datos.linea, datos.curso);
+
+    const nombreArchivo = construirNombreArchivo(
+      carpetas.curso, nombreEstudiante, datos.codigoCurso, datos.curso, 'txt');
+
+    // newBlob con un String guarda en UTF-8: las tildes y la ñ quedan bien.
+    const blob = Utilities.newBlob(contenido, 'text/plain', nombreArchivo);
+    const archivo = carpetas.curso.createFile(blob);
+
+    // El texto va también a la planilla: es corto, y ahí queda buscable sin
+    // tener que abrir el archivo uno por uno.
+    const errorPlanilla = registrarEnPlanilla(filaDeRegistro(
+      correo, nombreEstudiante, datos, carpetas,
+      nombreArchivo, archivo.getUrl(), 'texto', contenido));
 
     return {
       exito: true,
@@ -137,6 +193,24 @@ function subirImagen(datos) {
 /* =========================================================
    4. Registro en la planilla
    ========================================================= */
+
+// Arma la fila en el orden de ENCABEZADOS. Imágenes y textos pasan por acá,
+// para que las columnas no se puedan desalinear entre un tipo y el otro.
+function filaDeRegistro(correo, nombre, datos, carpetas, nombreArchivo, url, tipo, contenido) {
+  return [
+    new Date(),
+    correo,
+    nombre,
+    datos.linea,
+    carpetas.linea.getUrl(),
+    datos.curso,
+    carpetas.curso.getUrl(),
+    nombreArchivo,
+    url,
+    tipo,
+    contenido
+  ];
+}
 
 // Agrega una fila a la primera hoja. Devuelve '' si salió bien,
 // o el mensaje de error si falló: nunca lanza.
@@ -161,8 +235,10 @@ function registrarEnPlanilla(fila) {
 
 /* =========================================================
    5. Nombre del archivo
-   Queda: juanPerez-dibujo-y-observacion-01.webp
-   La línea no se incluye porque se deduce del curso.
+   Queda: juanPerez-ART03113-01.webp
+   El código de asignatura va en vez del nombre del curso: es corto,
+   estable ante renombres y sirve para ordenar el archivo. La línea no
+   se incluye porque se deduce del curso.
    ========================================================= */
 
 // Quita tildes y deja solo minúsculas, números y guiones.
@@ -184,6 +260,16 @@ function aCamelCase(texto) {
   }).join('');
 }
 
+// Deja el código listo para un nombre de archivo. Los códigos de la malla ya
+// vienen limpios ("ART03215"); esto es por si alguno se escribe con espacio o
+// guion al agregar un curso.
+// Si el curso todavía no tiene código, se cae al nombre en slug para no
+// dejar el archivo sin identificar.
+function claveDeCurso(codigoCurso, curso) {
+  const codigo = (codigoCurso || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return codigo || aSlug(curso);
+}
+
 // Extensión del archivo original; si no tiene, asumimos webp.
 function extensionDe(nombreArchivo) {
   const punto = (nombreArchivo || '').lastIndexOf('.');
@@ -201,12 +287,14 @@ function siguienteCorrelativo(carpeta, prefijo) {
   return cuenta + 1;
 }
 
-function construirNombreArchivo(carpeta, nombreEstudiante, curso, nombreOriginal) {
-  const prefijo = aCamelCase(nombreEstudiante) + '-' + aSlug(curso) + '-';
+function construirNombreArchivo(carpeta, nombreEstudiante, codigoCurso, curso, extension) {
+  const prefijo = aCamelCase(nombreEstudiante) + '-' + claveDeCurso(codigoCurso, curso) + '-';
   const numero = siguienteCorrelativo(carpeta, prefijo);
   const correlativo = numero < 10 ? '0' + numero : String(numero);
 
-  return prefijo + correlativo + '.' + extensionDe(nombreOriginal);
+  // El correlativo no distingue imágenes de textos: cuenta por prefijo, así que
+  // una carpeta queda 01.webp, 02.txt, 03.webp, en el orden en que llegaron.
+  return prefijo + correlativo + '.' + extension;
 }
 
 
@@ -251,16 +339,16 @@ function armarCuerpoDelCorreo(nombre, resumen, urlCarpeta) {
   return '<p>Hola ' + nombre + ',</p>' +
 
     '<p>Gracias por completar el formulario. El ' + fecha + ' recibimos ' +
-    resumen.cantidad + ' imagen(es):</p>' +
+    resumen.cantidad + ' archivo(s):</p>' +
 
     listaDeCursos(resumen.detalles) +
 
     '<p>Puedes revisar todo lo que has subido en tu carpeta:<br>' +
     '<a href="' + urlCarpeta + '">' + urlCarpeta + '</a></p>' +
 
-    '<p style="color:#666;font-size:13px">Los archivos se renombran y se convierten a ' +
-    'WebP al guardarse, así que el nombre que ves acá no es el que tenían en tu ' +
-    'teléfono o computador. Es el mismo archivo.</p>' +
+    '<p style="color:#666;font-size:13px">Los archivos se renombran al guardarse, y ' +
+    'las imágenes además se convierten a WebP, así que el nombre que ves acá no es ' +
+    'el que tenían en tu teléfono o computador. Es el mismo archivo.</p>' +
 
     '<p>Puedes volver a subir trabajos las veces que quieras mientras la ventana ' +
     'esté abierta. Si algo no cuadra, responde este correo.</p>';
@@ -272,7 +360,7 @@ function listaDeCursos(detalles) {
 
   return detalles.map(function (detalle) {
     return '<p><strong>' + detalle.curso + '</strong> — ' + detalle.linea + '<br>' +
-      detalle.cantidad + ' imagen(es) · ' +
+      detalle.cantidad + ' archivo(s) · ' +
       '<a href="' + detalle.urlCarpeta + '">ver la carpeta del curso</a></p>' +
       listaDeArchivos(detalle.archivos);
   }).join('');

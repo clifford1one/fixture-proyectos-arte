@@ -1,8 +1,8 @@
 # Formulario de subida — Archivo de prácticas
 
-Formulario web para que estudiantes de Arte suban imágenes de sus trabajos a Drive,
-indicando a qué curso pertenecen. Corre sobre Google Apps Script, sin frameworks
-ni librerías externas.
+Formulario web para que estudiantes de Arte suban imágenes y textos de sus trabajos
+a Drive, indicando a qué curso pertenecen. Corre sobre Google Apps Script, sin
+frameworks ni librerías externas.
 
 La ventana de subida dura un mes y cada estudiante puede volver las veces que quiera.
 
@@ -25,15 +25,30 @@ La ventana de subida dura un mes y cada estudiante puede volver las veces que qu
 ## Cómo funciona
 
 1. El estudiante escribe su nombre. Si ya subió antes, viene rellenado y bloqueado.
-2. Elige un curso y sus imágenes. La línea curricular se deduce del curso.
+2. Elige un curso, y sube imágenes, textos o ambos. La línea curricular se deduce
+   del curso. **Ninguno de los dos es obligatorio**: basta con uno.
 3. Puede añadir más bloques para subir a **varios cursos en una sola tanda**.
 4. Cada imagen se previsualiza con su nombre y peso. Las que no cumplen quedan
    marcadas con el motivo, sin descartar las demás.
 5. Al enviar, cada imagen se redimensiona a 2000 px, se convierte a WebP y se sube
-   **de a una**, con barra de avance y estado por imagen.
+   **de a una**, con barra de avance y estado por archivo. Los textos van después
+   de las imágenes del mismo bloque, a la misma carpeta.
 6. Al terminar llega un correo de confirmación con los enlaces a las carpetas.
 
-### Validación
+### Textos
+
+Un texto es un `<textarea>` con su botón de quitar; se agregan tantos como se
+quiera con **+ Añadir un texto**. El textarea *es* la tarjeta: no hay paso de
+"agregar" que lo vuelva inmutable, así que se puede corregir hasta el envío.
+
+- Se guardan como `.txt` en UTF-8, en la carpeta del curso
+- Máximo 2.000 caracteres (`TEXTO_MAXIMO`, revisado en el cliente **y** en el servidor)
+- Un campo en blanco se ignora: no es error y no bloquea el envío
+- El contenido va también a la columna `contenido` de la planilla, para poder
+  buscarlo sin abrir archivo por archivo — y para que la visualización lo lea del
+  CSV en vez de pedir un archivo a Drive por cada frase
+
+### Validación de imágenes
 
 - Formatos: PNG, JPG, JPEG
 - Peso máximo: 10 MB por imagen, medido **antes** de comprimir
@@ -47,20 +62,43 @@ carpeta raíz
 └── juanPerez/
     └── Imagen y tecnología/
         └── Imagen fija/
-            ├── juanPerez-imagen-fija-01.webp
-            └── juanPerez-imagen-fija-02.webp
+            ├── juanPerez-ART03215-01.webp
+            ├── juanPerez-ART03215-02.txt
+            └── juanPerez-ART03215-03.webp
 ```
+
+El correlativo no distingue imágenes de textos: cuenta por prefijo, así que la
+numeración es una sola secuencia cronológica por curso y la extensión dice de qué
+se trata cada archivo.
+
+Las carpetas llevan el nombre del curso; el archivo lleva el **código de
+asignatura**. Es una comodidad de orden interno: el estudiante nunca ve el código
+en el formulario, solo en el nombre del archivo ya guardado. Los códigos son los
+de la Malla Curricular Plan 3.0 de Artes Visuales y viven junto a cada curso en
+`LINEAS_CURRICULARES` (`script.js`).
+
+Un curso sin código cae al nombre en slug (`juanPerez-imagen-fija-01.webp`), así
+que agregar un curso nuevo sin código no rompe nada.
 
 El nombre del archivo lo arma el servidor, no el cliente. El correlativo se cuenta
 dentro de la carpeta del curso, así que la numeración continúa entre visitas.
 
 ## Columnas de la planilla
 
-`fechaSubida` · `correo` · `nombre` · `linea` · `linkCarpetaLinea` · `curso` ·
-`linkCarpetaCurso` · `nombreArchivo` · `linkArchivo`
+`fecha` · `correo` · `nombre` · `linea` · `folderLinea` · `curso` · `folderCurso` ·
+`nombreArchivo` · `linkArchivo` · `tipo` · `contenido`
 
-Los encabezados se escriben solos si la hoja está vacía. Si la planilla falla, la
-subida **no** se cae: la imagen ya está en Drive y el error se informa aparte.
+`tipo` es `imagen` o `texto`. `contenido` solo se llena en los textos.
+
+Las columnas nuevas van **siempre al final**: `appendRow` escribe por posición, así
+que insertar una al medio desalinearía todas las filas ya escritas. Por lo mismo,
+`filaDeRegistro()` arma la fila en un único lugar para los dos tipos.
+
+Los encabezados se escriben solos **solo si la hoja está vacía**. En una planilla
+que ya tiene filas hay que agregarlos a mano.
+
+Si la planilla falla, la subida **no** se cae: el archivo ya está en Drive y el
+error se informa aparte.
 
 ## Publicar en Apps Script
 
@@ -97,8 +135,9 @@ alojados en la carpeta raíz. La carpeta debe estar compartida con permiso de ed
 
 | Qué | Dónde |
 | - | - |
-| Agregar o renombrar cursos | `LINEAS_CURRICULARES` al inicio de `script.js` |
+| Agregar o renombrar cursos, o cambiar su código | `LINEAS_CURRICULARES` al inicio de `script.js` |
 | Peso máximo por imagen | `PESO_MAXIMO_BYTES` en `script.js` |
+| Largo máximo de un texto | `TEXTO_MAXIMO`, en `script.js` **y** en `code.gs` |
 | Tamaño y calidad de compresión | `LADO_MAXIMO` y `CALIDAD_WEBP` en `script.js` |
 | Carpeta y planilla de destino | `DRIVE_FOLDER_ID` y `SPREADSHEET_ID` en `code.gs` |
 | Formato del nombre de archivo | `construirNombreArchivo()` en `code.gs` |
@@ -118,3 +157,6 @@ puede enviar, con la cuota que queda.
 - **Cuota de correo.** 100 envíos diarios en cuenta Gmail normal, 1.500 en Workspace.
 - **Duración de una tanda.** Tres cursos con seis fotos son 18 llamadas secuenciales.
   Si se hace muy lento, bajar `LADO_MAXIMO` de 2000 a 1600 es lo que más rinde.
+  Los textos no pesan: suben de inmediato.
+- **`TEXTO_MAXIMO` está declarado dos veces**, en el cliente y en el servidor. Es a
+  propósito — el cliente puede mentir — pero si se cambia uno hay que cambiar el otro.

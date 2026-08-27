@@ -21,6 +21,13 @@
     font-size: 16px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+
+    /* iOS agranda el texto al girar el teléfono si no se le dice que no */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+
+    /* Nada debe provocar barra horizontal en celular */
+    overflow-wrap: break-word;
   }
 
   .contenedor {
@@ -273,9 +280,85 @@
 
   .quitar:disabled:hover { background: var(--papel); color: var(--tinta-suave); }
 
+  /* ---------- Textos ----------
+     El textarea es la tarjeta: no hay paso intermedio de "agregar", así que
+     el estudiante puede corregir lo escrito hasta el momento de enviar. */
+  .texto {
+    position: relative;
+    margin-bottom: 0.75rem;
+  }
+
+  .texto-campo {
+    display: block;
+    width: 100%;
+    /* 1rem = 16px. Con menos, iOS hace zoom al enfocar el campo. */
+    font-size: 1rem;
+    font-family: inherit;
+    line-height: 1.5;
+    color: var(--tinta);
+    background: var(--papel);
+    /* El espacio de la derecha es para que el texto no pase por debajo de la ×. */
+    padding: 0.75rem 3rem 0.75rem 0.875rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    resize: vertical;
+  }
+
+  .texto-campo:focus {
+    outline: 2px solid var(--tinta);
+    outline-offset: 2px;
+  }
+
+  .texto-campo:disabled {
+    color: var(--tinta-suave);
+    background-color: #ededed;
+    border-color: var(--borde-tenue);
+  }
+
+  .texto .quitar { top: 8px; right: 8px; }
+
+  .texto-estado {
+    margin: 0.375rem 0 0;
+    font-size: 0.6875rem;
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--tinta);
+    word-break: break-all;
+  }
+
+  /* Mismos estados que las miniaturas, diferenciados sin color */
+  .texto.subiendo .texto-estado {
+    font-weight: 400;
+    font-style: italic;
+    color: var(--tinta-media);
+  }
+
+  .texto.subida .texto-campo { border-color: var(--borde-tenue); }
+  .texto.con-error .texto-campo { border-style: dashed; }
+
+  .agregar-texto {
+    width: 100%;
+    padding: 0.75rem;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--tinta);
+    background: transparent;
+    border: 1px dashed var(--borde-tenue);
+    border-radius: var(--radio);
+    cursor: pointer;
+  }
+
+  .agregar-texto:hover { background: #ebebeb; border-color: var(--borde); }
+
+  .agregar-texto:disabled {
+    color: var(--tinta-suave);
+    cursor: not-allowed;
+  }
+
   /* ---------- Resumen y envío ---------- */
   .resumen {
-    margin-top: 1.25rem;
+    margin-top: 0;
     font-size: 0.8125rem;
     color: var(--tinta-media);
     font-variant-numeric: tabular-nums;
@@ -485,4 +568,56 @@
     .bloque { padding: 1.75rem 1rem 0.5rem; }
     .gracias { padding: 2.5rem 1.25rem; }
     .gracias-enlace { display: block; }
+
+    /* El nombre del curso puede ocupar varias líneas: que no pase por
+       debajo del botón de quitar. */
+    .bloque-titulo {
+      max-width: calc(100% - 2.75rem);
+      letter-spacing: 0.04em;
+    }
+  }
+
+  /* ---------- Celular chico (320–360 px) ---------- */
+  @media (max-width: 380px) {
+    body { padding: 1.5rem 0.75rem 3.5rem; }
+    .bloque { padding: 1.5rem 0.75rem 0.5rem; }
+
+    /* Con 130px la grilla caía a una sola columna en pantallas de 320px */
+    .grilla { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 0.5rem; }
+    .miniatura .datos { padding: 0.5rem 0.5rem 0.625rem; }
+    .encabezado h1 { font-size: 1.25rem; }
+  }
+
+  /* ---------- Pantallas táctiles ----------
+     Depende del tipo de puntero, no del ancho: un dedo necesita más
+     superficie que un mouse, tenga la pantalla el tamaño que tenga. */
+  @media (hover: none) and (pointer: coarse) {
+    .quitar,
+    .bloque-quitar {
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+    }
+
+    .bloque-quitar { top: 0.5rem; right: 0.5rem; }
+
+    .boton-archivo { padding: 1rem 1.25rem; }
+    .gracias-boton { padding: 0.875rem 1.25rem; }
+
+    /* En táctil no hay hover: el gris de rollover solo confunde */
+    .boton-archivo:hover,
+    .agregar-bloque:hover,
+    .agregar-texto:hover,
+    .gracias-enlace:hover,
+    .gracias-boton:hover { background: transparent; }
+
+    .quitar:hover,
+    .bloque-quitar:hover { background: var(--papel); color: var(--tinta); }
+  }
+
+  /* ---------- Movimiento reducido ----------
+     La barra de avance es la única animación del formulario. Quien pidió
+     menos movimiento en su sistema ve el salto directo, sin transición. */
+  @media (prefers-reduced-motion: reduce) {
+    .barra-avance { transition: none; }
   }
