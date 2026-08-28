@@ -19,7 +19,7 @@ La ventana de subida dura un mes y cada estudiante puede volver las veces que qu
 | - | - |
 | `code.gs` | Backend: sirve el formulario, guarda en Drive, escribe la planilla, manda el correo |
 | `index.html` | Marcado del formulario y molde de los bloques de curso |
-| `style.css` | Estilos. Escala de grises sobre `#f5f5f5`, sin colores de acento |
+| `style.css` | Estilos. Escala de grises sobre `#f5f5f5`, sin colores de acento. Incluye las tres tipografías en base64 |
 | `script.js` | Lógica del navegador: validación, compresión, subida y estados |
 
 ## Cómo funciona
@@ -54,6 +54,38 @@ quiera con **+ Añadir un texto**. El textarea *es* la tarjeta: no hay paso de
 - Peso máximo: 10 MB por imagen, medido **antes** de comprimir
 - Orientación EXIF corregida, para que las fotos de celular no salgan rotadas
 - Si la compresión falla, se sube el archivo original en vez de descartarlo
+
+## Tipografías
+
+Tres caras, un rol cada una, declaradas al inicio de `style.css` y usadas siempre
+a través de una variable — nunca por nombre directo:
+
+| Variable | Cara | Dónde |
+| - | - | - |
+| `--fuente-titulo` | WorkFaAAD | Solo el `h1` del encabezado y el `h2` de la pantalla final |
+| `--fuente-texto` | WorkSans (variable, 100–900) | Párrafos, ayudas, campos, botones en caja baja |
+| `--fuente-mono` | NectoMono | Rótulos en versalitas, nombres de archivo, cifras, estados y los dos botones en mayúsculas |
+
+Van **en base64** dentro del CSS porque el editor de Apps Script solo acepta `.gs`
+y `.html`: no hay dónde subir un binario suelto. Cada archivo lleva `PEGA_AQUI` en
+el `src`, listo para reemplazar por el base64.
+
+Tres cosas que importan al pegarlas:
+
+- **Solo `woff2`.** La fuente viaja dentro del HTML en cada carga y no se cachea
+  aparte, así que cada formato extra se paga en todas las visitas. Tres caras
+  pueden sumar fácilmente 150–300 KB al peso de la página; subsetear a latín
+  ayuda bastante si se nota en celular.
+- **El rango de una variable va con espacio**, `font-weight: 100 900`. Con guion
+  (`100-900`) la declaración es inválida y el navegador la descarta entera.
+- **WorkFaAAD y NectoMono traen un solo peso.** Todo lo que las usa está en
+  `font-weight: 400` a propósito: pedirles 600 hace que el navegador invente una
+  negrita, y en una display y una monoespaciada se nota. La jerarquía en esos
+  elementos la dan las versalitas, el interletrado y el color. Los pesos 500 y 600
+  que quedan en el CSS son todos de WorkSans, que sí los tiene de verdad.
+
+Los `font-family` de respaldo no son adorno: si el base64 falta o falla, el
+formulario tiene que seguir siendo legible.
 
 ## Estructura en Drive
 
@@ -140,6 +172,7 @@ alojados en la carpeta raíz. La carpeta debe estar compartida con permiso de ed
 | Largo máximo de un texto | `TEXTO_MAXIMO`, en `script.js` **y** en `code.gs` |
 | Tamaño y calidad de compresión | `LADO_MAXIMO` y `CALIDAD_WEBP` en `script.js` |
 | Carpeta y planilla de destino | `DRIVE_FOLDER_ID` y `SPREADSHEET_ID` en `code.gs` |
+| Cambiar una tipografía o su rol | `@font-face` y `--fuente-*` al inicio de `style.css` |
 | Formato del nombre de archivo | `construirNombreArchivo()` en `code.gs` |
 
 ## Diagnóstico
