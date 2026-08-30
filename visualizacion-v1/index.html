@@ -822,14 +822,7 @@
        acomodan en más anillos sin desbordarse.
        ========================================================= */
     const LADO_MINIMO = 22;
-    const LADO_MAXIMO = 200;
-
-    // Primer tanteo del tamaño. La raíz de la cantidad reparte el
-    // área disponible: al doble de obras, cada una mide un 30% menos.
-    function ladoDeTanteo(cantidad, radio) {
-      const tanteo = 1.05 * radio / Math.sqrt(cantidad);
-      return Math.max(LADO_MINIMO, Math.min(LADO_MAXIMO, tanteo));
-    }
+    const LADO_MAXIMO = 260;
 
     // Cuántas fichas de este lado caben en una vuelta de este radio.
     function capacidadDelAnillo(radio, lado) {
@@ -867,19 +860,34 @@
     }
 
     // Busca el lado más grande con el que todo cabe dentro del radio.
-    function ajustarLado(cantidad, radioMaximo, radioInterior) {
-      let lado = ladoDeTanteo(cantidad, radioMaximo);
-      let reparto = repartirEnAnillos(cantidad, lado, radioInterior);
-      let intentos = 0;
+    // Por búsqueda binaria en vez de partir de un tanteo y solo achicar:
+    // así la ficha siempre llega a ocupar todo el espacio disponible,
+    // tanto en un cuadrante chico como en una sección a pantalla completa.
+    function cabeConLado(cantidad, lado, radioInterior, radioMaximo) {
+      const reparto = repartirEnAnillos(cantidad, lado, radioInterior);
+      return reparto.radio + lado / 2 <= radioMaximo ? reparto : null;
+    }
 
-      while (reparto.radio + lado / 2 > radioMaximo &&
-             lado > LADO_MINIMO && intentos < 40) {
-        lado = Math.max(LADO_MINIMO, lado * 0.92);
-        reparto = repartirEnAnillos(cantidad, lado, radioInterior);
-        intentos++;
+    function ajustarLado(cantidad, radioMaximo, radioInterior) {
+      let bajo = LADO_MINIMO;
+      let alto = LADO_MAXIMO;
+      let mejorLado = LADO_MINIMO;
+      let mejorReparto = repartirEnAnillos(cantidad, LADO_MINIMO, radioInterior);
+
+      for (let intentos = 0; intentos < 20; intentos++) {
+        const medio = (bajo + alto) / 2;
+        const reparto = cabeConLado(cantidad, medio, radioInterior, radioMaximo);
+
+        if (reparto) {
+          mejorLado = medio;
+          mejorReparto = reparto;
+          bajo = medio;       // cabe: probar algo más grande
+        } else {
+          alto = medio;       // no cabe: probar algo más chico
+        }
       }
 
-      return { lado: lado, posiciones: reparto.posiciones };
+      return { lado: mejorLado, posiciones: mejorReparto.posiciones };
     }
 
     // Coloca las fichas ya creadas. Se llama al dibujar y cada vez
