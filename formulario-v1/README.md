@@ -35,6 +35,46 @@ La ventana de subida dura un mes y cada estudiante puede volver las veces que qu
    de las imágenes del mismo bloque, a la misma carpeta.
 6. Al terminar llega un correo de confirmación con los enlaces a las carpetas.
 
+### Videos de YouTube
+
+El video **no se sube**: se guarda el enlace. Lo que sí queda en Drive es su
+portada, para que el archivo conserve algo aunque el estudiante borre el video
+más adelante.
+
+Al enviar, `agregarVideoYoutube()` saca el id de 11 caracteres del enlace —
+acepta `watch?v=`, `youtu.be/`, `/shorts/`, `/embed/`, `/live/` y el id pelado —
+y le pregunta a YouTube por el video usando **oEmbed**, que no necesita API key:
+
+```
+https://www.youtube.com/oembed?format=json&url=…
+```
+
+Esa respuesta distingue lo único que de verdad importa: un video **privado no se
+puede insertar en ninguna parte**, y oEmbed lo delata con un 401. Un video
+**oculto** sí funciona, y es lo que conviene pedirle a los estudiantes.
+
+**En la carpeta del curso siempre queda un archivo**, con el mismo correlativo
+que el resto del material:
+
+- Si se pudo bajar la portada, un `.jpg` con la miniatura del video.
+- Si no, un `.txt` con el título y el enlace.
+
+En los dos casos el archivo lleva el enlace del video en su **descripción de
+Drive**, que se ve en el panel de detalles. Una imagen suelta no diría a qué
+video pertenece.
+
+Si `UrlFetchApp` no está permitido —el scope `script.external_request` puede
+requerir aprobación del dominio— la verificación se salta, se guarda la nota en
+vez de la portada, y el visualizador se cae a la miniatura que sirve YouTube.
+`diagnostico()` dice cuál de los dos casos es el tuyo.
+
+Lo que YouTube puede romper y no se ve en el enlace:
+
+- **Privado** no se inserta nunca. Tiene que ser oculto o público.
+- **"Permitir insertar"** es una casilla por video que se puede apagar.
+- **La música con derechos** puede bloquear la inserción o el video por país.
+- **El dominio institucional** puede tener bloqueada la subida a YouTube.
+
 ### Textos
 
 Un texto es un `<textarea>` con su botón de quitar; se agregan tantos como se
@@ -118,9 +158,15 @@ dentro de la carpeta del curso, así que la numeración continúa entre visitas.
 ## Columnas de la planilla
 
 `fecha` · `correo` · `nombre` · `linea` · `folderLinea` · `curso` · `folderCurso` ·
-`nombreArchivo` · `linkArchivo` · `tipo` · `contenido`
+`nombreArchivo` · `linkArchivo` · `tipo` · `contenido` · `enlace`
 
-`tipo` es `imagen` o `texto`. `contenido` solo se llena en los textos.
+`tipo` es `imagen`, `texto` o `youtube`.
+
+| tipo | `nombreArchivo` y `linkArchivo` | `contenido` | `enlace` |
+| - | - | - | - |
+| `imagen` | el `.webp` en Drive | vacío | vacío |
+| `texto` | el `.txt` en Drive | el texto | vacío |
+| `youtube` | lo que quedó en Drive: la **portada** `.jpg`, o una nota `.txt` | el título del video | la URL del video |
 
 Las columnas nuevas van **siempre al final**: `appendRow` escribe por posición, así
 que insertar una al medio desalinearía todas las filas ya escritas. Por lo mismo,
@@ -170,6 +216,7 @@ alojados en la carpeta raíz. La carpeta debe estar compartida con permiso de ed
 | Agregar o renombrar cursos, o cambiar su código | `LINEAS_CURRICULARES` al inicio de `script.js` |
 | Peso máximo por imagen | `PESO_MAXIMO_BYTES` en `script.js` |
 | Largo máximo de un texto | `TEXTO_MAXIMO`, en `script.js` **y** en `code.gs` |
+| Formas de enlace de YouTube aceptadas | `idDeYoutube()` en `code.gs` |
 | Tamaño y calidad de compresión | `LADO_MAXIMO` y `CALIDAD_WEBP` en `script.js` |
 | Carpeta y planilla de destino | `DRIVE_FOLDER_ID` y `SPREADSHEET_ID` en `code.gs` |
 | Cambiar una tipografía o su rol | `@font-face` y `--fuente-*` al inicio de `style.css` |

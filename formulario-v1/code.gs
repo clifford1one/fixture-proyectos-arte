@@ -17,7 +17,7 @@ const ENCABEZADOS = [
   'linea', 'folderLinea',
   'curso', 'folderCurso',
   'nombreArchivo', 'linkArchivo',
-  'tipo', 'contenido'
+  'tipo', 'contenido', 'enlace'
 ];
 
 // Tope de un texto. Se revisa acá además del maxlength del navegador:
@@ -117,7 +117,7 @@ function subirImagen(datos) {
     // El archivo ya está guardado: si la planilla falla, no se pierde la subida.
     const errorPlanilla = registrarEnPlanilla(filaDeRegistro(
       correo, nombreEstudiante, datos, carpetas,
-      nombreArchivo, archivo.getUrl(), 'imagen', ''));
+      nombreArchivo, archivo.getUrl(), 'imagen', '', ''));
 
     return {
       exito: true,
@@ -173,7 +173,7 @@ function subirTexto(datos) {
     // tener que abrir el archivo uno por uno.
     const errorPlanilla = registrarEnPlanilla(filaDeRegistro(
       correo, nombreEstudiante, datos, carpetas,
-      nombreArchivo, archivo.getUrl(), 'texto', contenido));
+      nombreArchivo, archivo.getUrl(), 'texto', contenido, ''));
 
     return {
       exito: true,
@@ -191,12 +191,188 @@ function subirTexto(datos) {
 
 
 /* =========================================================
+   3c. Enlace de video de YouTube
+   Recibe: { nombre, linea, curso, codigoCurso, url }
+
+   El video no se sube: vive en YouTube. Lo que sí queda en Drive
+   es su portada, para que el archivo conserve algo aunque el
+   estudiante borre el video o le cambie la privacidad.
+   ========================================================= */
+
+// Saca el id de 11 caracteres de cualquiera de las formas que usa
+// YouTube: watch?v=, youtu.be/, /shorts/, /embed/, con o sin más
+// parámetros detrás.
+function idDeYoutube(url) {
+  const texto = String(url || '').trim();
+  const patrones = [
+    /[?&]v=([A-Za-z0-9_-]{11})/,
+    /youtu\.be\/([A-Za-z0-9_-]{11})/,
+    /\/shorts\/([A-Za-z0-9_-]{11})/,
+    /\/embed\/([A-Za-z0-9_-]{11})/,
+    /\/live\/([A-Za-z0-9_-]{11})/
+  ];
+
+  for (let i = 0; i < patrones.length; i++) {
+    const encontrado = texto.match(patrones[i]);
+    if (encontrado) return encontrado[1];
+  }
+
+  // Pegar el id pelado también vale.
+  return /^[A-Za-z0-9_-]{11}$/.test(texto) ? texto : '';
+}
+
+// Pregunta por el video sin API key. Responde 200 con título y portada
+// si es público u oculto, y 401 si es privado: justo la distinción que
+// importa, porque un video privado no se puede insertar en ninguna parte.
+// Devuelve { ok, titulo, urlPortada, mensaje }.
+function consultarYoutube(idVideo) {
+  const consulta = 'https://www.youtube.com/oembed?format=json&url=' +
+    encodeURIComponent('https://www.youtube.com/watch?v=' + idVideo);
+
+  try {
+    const respuesta = UrlFetchApp.fetch(consulta, { muteHttpExceptions: true });
+    const codigo = respuesta.getResponseCode();
+
+    if (codigo === 401 || codigo === 403) {
+      return {
+        ok: false,
+        mensaje: 'El video es privado. Cámbialo a "Oculto" para que se pueda ver acá.'
+      };
+    }
+    if (codigo === 404) {
+      return { ok: false, mensaje: 'No encontramos ese video. Revisa el enlace.' };
+    }
+    if (codigo !== 200) {
+      return { ok: false, mensaje: 'YouTube respondió ' + codigo + '.' };
+    }
+
+    const datos = JSON.parse(respuesta.getContentText());
+    return {
+      ok: true,
+      titulo: datos.title || '',
+      urlPortada: datos.thumbnail_url || ''
+    };
+
+  } catch (error) {
+    // Sin permiso de salida a internet no se puede verificar. No es
+    // motivo para rechazar el enlace: se guarda sin comprobar.
+    Logger.log('No se pudo consultar YouTube: %s', error.message);
+    return { ok: true, titulo: '', urlPortada: '', sinVerificar: true };
+  }
+}
+
+// Baja la portada y la deja en la carpeta del curso, con el enlace del
+// video en la descripción del archivo. Devuelve { nombre, url } o null
+// si no se pudo — normalmente porque el dominio no permite UrlFetchApp.
+function guardarPortada(carpeta, nombreBase, urlPortada, titulo, urlVideo) {
+  if (!urlPortada) return null;
+
+  try {
+    const respuesta = UrlFetchApp.fetch(urlPortada, { muteHttpExceptions: true });
+    if (respuesta.getResponseCode() !== 200) return null;
+
+    const nombre = nombreBase + '.jpg';
+    const blob = respuesta.getBlob().setName(nombre);
+    const archivo = carpeta.createFile(blob);
+
+    // Una imagen suelta no dice a qué video pertenece. La descripción se
+    // ve en el panel de detalles de Drive y viaja con el archivo.
+    archivo.setDescription((titulo ? titulo + ' — ' : '') + urlVideo);
+
+    return { nombre: nombre, url: archivo.getUrl() };
+
+  } catch (error) {
+    Logger.log('No se pudo guardar la portada: %s', error.message);
+    return null;
+  }
+}
+
+// Piso garantizado: si no hubo portada, igual queda algo en la carpeta
+// del curso. Es un .txt, así que Drive lo previsualiza al abrirlo y no
+// necesita salir a internet para crearse.
+function guardarNotaDelVideo(carpeta, nombreBase, titulo, urlVideo) {
+  const nombre = nombreBase + '.txt';
+  const cuerpo = (titulo || 'Video de YouTube') + '\n' + urlVideo + '\n';
+
+  const blob = Utilities.newBlob(cuerpo, 'text/plain', nombre);
+  const archivo = carpeta.createFile(blob);
+  archivo.setDescription(urlVideo);
+
+  return { nombre: nombre, url: archivo.getUrl() };
+}
+
+function agregarVideoYoutube(datos) {
+  try {
+    const correo = Session.getActiveUser().getEmail();
+
+    const nombreEstudiante = resolverNombre(datos.nombre);
+    if (!nombreEstudiante) {
+      return { exito: false, mensaje: 'Falta el nombre del estudiante.' };
+    }
+    if (!datos.linea || !datos.curso) {
+      return { exito: false, mensaje: 'Falta la línea o el curso.' };
+    }
+
+    const idVideo = idDeYoutube(datos.url);
+    if (!idVideo) {
+      return { exito: false, mensaje: 'Ese no parece un enlace de YouTube.' };
+    }
+
+    const consulta = consultarYoutube(idVideo);
+    if (!consulta.ok) {
+      return { exito: false, mensaje: consulta.mensaje };
+    }
+
+    const carpetas = prepararCarpetas(nombreEstudiante, datos.linea, datos.curso);
+
+    const urlCanonica = 'https://www.youtube.com/watch?v=' + idVideo;
+
+    // El video entra en la misma numeración que las imágenes y los textos
+    // del curso. Se arma el nombre sin extensión: la pone quien guarde.
+    const conExtension = construirNombreArchivo(
+      carpetas.curso, nombreEstudiante, datos.codigoCurso, datos.curso, 'jpg');
+    const nombreBase = conExtension.slice(0, -4);
+
+    // Siempre queda algo en la carpeta: la portada si se pudo bajar, y si
+    // no, una nota con el título y el enlace. Así el video nunca es
+    // invisible para quien revise el archivo desde Drive.
+    const enDrive =
+      guardarPortada(carpetas.curso, nombreBase, consulta.urlPortada,
+                     consulta.titulo, urlCanonica) ||
+      guardarNotaDelVideo(carpetas.curso, nombreBase, consulta.titulo, urlCanonica);
+
+    const errorPlanilla = registrarEnPlanilla(filaDeRegistro(
+      correo, nombreEstudiante, datos, carpetas,
+      enDrive.nombre, enDrive.url,
+      'youtube', consulta.titulo, urlCanonica));
+
+    return {
+      exito: true,
+      idVideo: idVideo,
+      titulo: consulta.titulo,
+      url: urlCanonica,
+      nombreArchivo: enDrive.nombre,
+      urlCarpetaCurso: carpetas.curso.getUrl(),
+      sinVerificar: consulta.sinVerificar === true,
+      // Sin portada quedó la nota de texto, no una imagen.
+      sinPortada: enDrive.nombre.slice(-4) !== '.jpg',
+      errorPlanilla: errorPlanilla
+    };
+
+  } catch (error) {
+    return { exito: false, mensaje: error.message };
+  }
+}
+
+
+/* =========================================================
    4. Registro en la planilla
    ========================================================= */
 
 // Arma la fila en el orden de ENCABEZADOS. Imágenes y textos pasan por acá,
 // para que las columnas no se puedan desalinear entre un tipo y el otro.
-function filaDeRegistro(correo, nombre, datos, carpetas, nombreArchivo, url, tipo, contenido) {
+function filaDeRegistro(correo, nombre, datos, carpetas,
+                        nombreArchivo, url, tipo, contenido, enlace) {
   return [
     new Date(),
     correo,
@@ -208,7 +384,8 @@ function filaDeRegistro(correo, nombre, datos, carpetas, nombreArchivo, url, tip
     nombreArchivo,
     url,
     tipo,
-    contenido
+    contenido,
+    enlace || ''
   ];
 }
 
@@ -439,5 +616,61 @@ function diagnostico() {
 
   } catch (error) {
     Logger.log('MailApp falló: %s', error.message);
+  }
+
+  diagnosticarYoutube();
+}
+
+
+/* Responde lo único que puede hacer que un video quede sin portada en
+   Drive: si el script tiene permiso para salir a internet. Sin ese
+   permiso el enlace igual se registra en la planilla, pero no se
+   guarda ninguna imagen. */
+function diagnosticarYoutube() {
+  const idPrueba = 'A1_u4n5Cz2w';
+
+  Logger.log('--- YouTube ---');
+
+  let consulta;
+  try {
+    consulta = consultarYoutube(idPrueba);
+  } catch (error) {
+    Logger.log('consultarYoutube lanzó: %s', error.message);
+    return;
+  }
+
+  if (consulta.sinVerificar) {
+    Logger.log('UrlFetchApp NO está disponible.');
+    Logger.log('Los enlaces se van a registrar igual, pero sin portada en Drive.');
+    Logger.log('Falta el permiso script.external_request en el manifiesto,');
+    Logger.log('o el dominio lo tiene bloqueado.');
+    return;
+  }
+
+  if (!consulta.ok) {
+    Logger.log('UrlFetchApp funciona, pero el video de prueba no: %s', consulta.mensaje);
+    return;
+  }
+
+  Logger.log('UrlFetchApp funciona. Título del video: "%s"', consulta.titulo);
+  Logger.log('Portada: %s', consulta.urlPortada || '(sin portada)');
+
+  // Se guarda en la raíz y se borra: solo interesa saber si se puede.
+  try {
+    const raiz = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+    const portada = guardarPortada(raiz, 'prueba-portada', consulta.urlPortada,
+                                   consulta.titulo, 'https://youtu.be/' + idPrueba);
+
+    if (!portada) {
+      Logger.log('No se pudo guardar la portada en Drive.');
+      return;
+    }
+
+    Logger.log('Portada guardada en Drive: %s', portada.url);
+    DriveApp.getFileById(portada.url.match(/\/d\/([^\/]+)/)[1]).setTrashed(true);
+    Logger.log('(archivo de prueba enviado a la papelera)');
+
+  } catch (error) {
+    Logger.log('Falló al guardar en Drive: %s', error.message);
   }
 }

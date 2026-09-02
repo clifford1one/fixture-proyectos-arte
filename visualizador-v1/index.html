@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Archivo de prácticas — Visualizador</title>
+
+  <!-- Así el archivo se puede abrir suelto para revisar la página.
+       Al publicar en Apps Script estas tres líneas cambian: ver el
+       README, sección "Publicar en Apps Script". -->
+  <link rel="stylesheet" href="style.css">
+  <script src="datos-ejemplo.js"></script>
+  <script src="script.js" defer></script>
+</head>
+
+<body>
+
+  <header class="barra">
+    <button type="button" class="volver" id="volver" hidden
+      title="Volver a la vista general" aria-label="Volver a la vista general">←</button>
+
+    <h1>Archivo de prácticas</h1>
+    <span class="estudiante" id="estudiante"></span>
+
+    <div class="acciones">
+      <span class="guardado" id="guardado" aria-live="polite"></span>
+      <a class="boton fuerte" id="drive" href="#" target="_blank" rel="noopener">Mi carpeta en Drive ↗</a>
+    </div>
+  </header>
+
+  <main class="tablero" id="tablero"></main>
+
+  <!-- Cuando no se pudo identificar la cuenta o no hay nada subido -->
+  <div class="pantalla-aviso" id="pantalla-aviso" hidden>
+    <p class="aviso-titulo" id="aviso-titulo"></p>
+    <p class="aviso-texto" id="aviso-texto"></p>
+  </div>
+
+  <!-- Acciones del lote, visibles solo en modo selección -->
+  <div class="lote" id="lote" hidden>
+    <span class="lote-cuenta" id="lote-cuenta"></span>
+    <div class="lote-destinos" id="lote-destinos"></div>
+    <button type="button" class="boton" id="lote-limpiar">Cancelar</button>
+    <button type="button" class="boton fuerte" id="lote-confirmar">Confirmar</button>
+  </div>
+
+  <!-- Trabajo en primer plano -->
+  <div class="telon" id="telon" role="dialog" aria-modal="true" aria-label="Trabajo">
+    <button type="button" class="flecha previa" id="previa" aria-label="Trabajo anterior">←</button>
+
+    <div class="visor">
+      <div class="visor-hueco" id="visor-hueco"></div>
+
+      <div class="visor-datos">
+        <span class="curso" id="visor-curso"></span>
+        <span class="linea" id="visor-linea"></span>
+        <span class="indice" id="visor-indice"></span>
+      </div>
+
+      <div class="enviar" id="enviar">
+        <span class="enviar-rotulo">Enviar a</span>
+      </div>
+    </div>
+
+    <button type="button" class="flecha siguiente" id="siguiente" aria-label="Trabajo siguiente">→</button>
+    <button type="button" class="boton cerrar" id="cerrar">Cerrar ✕</button>
+    <p class="pista">← → para moverse · Esc para cerrar</p>
+  </div>
+
+</body>
+
+</html>

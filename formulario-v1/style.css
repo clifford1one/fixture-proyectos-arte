@@ -99,7 +99,7 @@
     margin: 0;
     font-size: 0.875rem;
     color: var(--tinta-media);
-    max-width: 46ch;
+    max-width: 50vw;
   }
 
   /* ---------- Campos ---------- */
@@ -408,6 +408,80 @@
     cursor: not-allowed;
   }
 
+  /* ---------- Enlaces de YouTube ----------
+     Mismo patrón que los textos: el campo es la tarjeta, y se puede
+     corregir el enlace hasta el momento de enviar. */
+  .enlace {
+    position: relative;
+    margin-bottom: 0.75rem;
+  }
+
+  .enlace-campo {
+    display: block;
+    width: 100%;
+    /* 1rem = 16px. Con menos, iOS hace zoom al enfocar el campo. */
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--tinta);
+    background: var(--papel);
+    /* Aire a la derecha para que el texto no pase por debajo de la ×. */
+    padding: 0.75rem 3rem 0.75rem 0.875rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+  }
+
+  .enlace-campo:focus {
+    outline: 2px solid var(--tinta);
+    outline-offset: 2px;
+  }
+
+  .enlace-campo:disabled {
+    color: var(--tinta-suave);
+    background-color: #ededed;
+    border-color: var(--borde-tenue);
+  }
+
+  .enlace .quitar { top: 8px; right: 8px; }
+
+  .enlace-estado {
+    margin: 0.375rem 0 0;
+    font-family: var(--fuente-mono);
+    font-size: 0.6875rem;
+    line-height: 1.35;
+    font-weight: 400;
+    color: var(--tinta);
+    word-break: break-word;
+  }
+
+  .enlace.subiendo .enlace-estado {
+    font-weight: 400;
+    font-style: italic;
+    color: var(--tinta-media);
+  }
+
+  .enlace.subida .enlace-campo { border-color: var(--borde-tenue); }
+  .enlace.con-error .enlace-campo { border-style: dashed; }
+
+  .agregar-enlace {
+    width: 100%;
+    padding: 0.75rem;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--tinta);
+    background: transparent;
+    border: 1px dashed var(--borde-tenue);
+    border-radius: var(--radio);
+    cursor: pointer;
+  }
+
+  .agregar-enlace:hover { background: #ebebeb; border-color: var(--borde); }
+
+  .agregar-enlace:disabled {
+    color: var(--tinta-suave);
+    cursor: not-allowed;
+  }
+
   /* ---------- Resumen y envío ---------- */
   .resumen {
     margin-top: 0;
@@ -664,6 +738,7 @@
     .boton-archivo:hover,
     .agregar-bloque:hover,
     .agregar-texto:hover,
+    .agregar-enlace:hover,
     .gracias-enlace:hover,
     .gracias-boton:hover { background: transparent; }
 

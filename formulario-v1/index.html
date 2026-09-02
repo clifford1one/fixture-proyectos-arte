@@ -17,8 +17,7 @@
 
     <header class="encabezado">
       <h1>Archivo de prácticas</h1>
-      <p>Sube imágenes y textos de tus trabajos indicando el curso al que pertenecen. Puedes volver las veces que
-        quieras durante el mes de subida.</p>
+      <p>En esta plataforma podrás compilar tu archivo del registro de todos los <b>procesos materiales y conceptuales</b> que has realizado <b>entre el 1er y 4to semestre</b> de la carrera, esto incluye todas las asignaturas que has cursado. Es relevante que subas para cada asignatura el registro de <b>bocetos, experimentos, diagramas, bitácoras, videos, textos, referentes o trabajos finales</b>, que den cuenta de los distintos procesos realizados. En el caso de asignaturas teóricas puedes también rescatar una <b>cita, apunte o fragmento</b> del algún trabajo, de no más de 500 palabras. <b>Todas las asignaturas deben tener algún registro.</b><br><br> Selecciona el curso, carga la imagen (de no más de 10 megas) y se guardará automáticamente en la carpeta asociada al nombre que ingresas <b>la primera vez que envíes el formulario.</b> Puedes revisar tus carpetas <a href="https://drive.google.com/drive/folders/1TfjGEABWqdrUGu20V9WQAUn3FTTyGnmh?usp=sharing" target="_blank" rel="noopener">aquí.</a></p>
     </header>
 
     <form id="formulario" novalidate>
@@ -93,6 +92,19 @@
           <div class="textos"></div>
 
           <button type="button" class="agregar-texto">+ Añadir un texto</button>
+        </div>
+
+        <div class="campo">
+          <span class="rotulo">Videos de YouTube</span>
+
+          <p class="ayuda">Pega el enlace de un video tuyo. Tiene que estar en
+            <strong>Oculto</strong> o <strong>Público</strong>: los videos privados
+            no se pueden mostrar en el archivo.</p>
+
+          <!-- Los enlaces se agregan y quitan desde el script. -->
+          <div class="enlaces"></div>
+
+          <button type="button" class="agregar-enlace">+ Añadir un video</button>
         </div>
 
         <p class="resumen" aria-live="polite"></p>

@@ -66,6 +66,9 @@ let ultimoIdBloque = 0;
 // Textos de un bloque. Cada uno:
 // { id, campo, nodo, estadoNodo, botonQuitar, estado, mensajeEstado, nombreEnDrive }
 // El contenido no se copia al estado: vive en el textarea hasta que se envía.
+//
+// Enlaces de YouTube de un bloque. Misma forma que un texto: el campo
+// guarda la URL y el servidor se encarga de validarla.
 let ultimoId = 0;
 
 // Bloquea el formulario mientras se está subiendo una tanda.
@@ -169,8 +172,11 @@ function crearBloque() {
         avisoCurso: nodo.querySelector(".aviso-curso"),
         listaTextos: nodo.querySelector(".textos"),
         botonAgregarTexto: nodo.querySelector(".agregar-texto"),
+        listaEnlaces: nodo.querySelector(".enlaces"),
+        botonAgregarEnlace: nodo.querySelector(".agregar-enlace"),
         imagenes: [],
-        textos: []
+        textos: [],
+        enlaces: []
     };
 
     // La etiqueta necesita un id único porque hay varios bloques a la vez.
@@ -191,6 +197,7 @@ function crearBloque() {
     });
 
     bloque.botonAgregarTexto.addEventListener("click", function () { agregarTexto(bloque); });
+    bloque.botonAgregarEnlace.addEventListener("click", function () { agregarEnlace(bloque); });
 
     bloque.botonQuitar.addEventListener("click", function () { quitarBloque(bloque); });
 
@@ -228,7 +235,9 @@ function refrescarBloques() {
         bloque.selectCurso.disabled = subidaEnCurso;
         bloque.inputArchivos.disabled = subidaEnCurso;
         bloque.botonAgregarTexto.disabled = subidaEnCurso;
+        bloque.botonAgregarEnlace.disabled = subidaEnCurso;
         bloque.textos.forEach(repintarTexto);
+        bloque.enlaces.forEach(repintarEnlace);
 
         // Con material puesto y sin curso, el bloque no se puede enviar: hay que decirlo.
         bloque.avisoCurso.hidden =
@@ -457,6 +466,129 @@ function textoDeEstadoTexto(item) {
 
 
 /* =========================================================
+   6c. Enlaces de YouTube
+   El video no se sube: se guarda el enlace. La validación de
+   verdad la hace el servidor, que le pregunta a YouTube si el
+   video existe y si se puede ver.
+   ========================================================= */
+
+function agregarEnlace(bloque) {
+    const item = {
+        id: ++ultimoId,
+        campo: null,
+        nodo: null,
+        estadoNodo: null,
+        botonQuitar: null,
+        estado: "pendiente",
+        mensajeEstado: "",
+        titulo: ""
+    };
+
+    bloque.enlaces.push(item);
+    bloque.listaEnlaces.appendChild(crearCampoEnlace(bloque, item));
+    item.campo.focus();
+
+    actualizarResumen(bloque);
+    actualizarEstadoEnvio();
+}
+
+function quitarEnlace(bloque, id) {
+    const indice = bloque.enlaces.findIndex(function (item) { return item.id === id; });
+    if (indice === -1) return;
+
+    bloque.enlaces[indice].nodo.remove();
+    bloque.enlaces.splice(indice, 1);
+
+    avisoEnvio.textContent = "";
+    actualizarResumen(bloque);
+    actualizarEstadoEnvio();
+}
+
+function urlDe(item) {
+    return item.campo ? item.campo.value.trim() : "";
+}
+
+function crearCampoEnlace(bloque, item) {
+    const caja = document.createElement("div");
+    caja.className = "enlace";
+
+    const campo = document.createElement("input");
+    campo.type = "url";
+    campo.className = "enlace-campo";
+    campo.placeholder = "https://www.youtube.com/watch?v=…";
+    campo.setAttribute("aria-label", "Enlace de YouTube para este curso");
+    campo.autocomplete = "off";
+
+    // Un campo en blanco no es un error: simplemente no se envía.
+    campo.addEventListener("input", function () {
+        // Al corregir un enlace que falló, vuelve a quedar por enviar.
+        if (item.estado === "error") {
+            item.estado = "pendiente";
+            item.mensajeEstado = "";
+            repintarEnlace(item);
+        }
+        actualizarResumen(bloque);
+        actualizarEstadoEnvio();
+    });
+
+    const estado = document.createElement("p");
+    estado.className = "enlace-estado";
+    estado.hidden = true;
+
+    item.campo = campo;
+    item.nodo = caja;
+    item.estadoNodo = estado;
+
+    caja.appendChild(campo);
+    caja.appendChild(crearBotonQuitarEnlace(bloque, item));
+    caja.appendChild(estado);
+
+    repintarEnlace(item);
+    return caja;
+}
+
+function crearBotonQuitarEnlace(bloque, item) {
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.className = "quitar";
+    boton.textContent = "×";
+    boton.title = "Quitar este video";
+    boton.setAttribute("aria-label", "Quitar este video");
+    boton.addEventListener("click", function () { quitarEnlace(bloque, item.id); });
+
+    item.botonQuitar = boton;
+    return boton;
+}
+
+// Igual que con los textos, el campo no se vuelve a crear: se ajustan
+// la clase, el bloqueo y la línea de estado.
+function repintarEnlace(item) {
+    if (!item.nodo) return;
+
+    item.nodo.className = "enlace " + claseDeTexto(item);
+
+    // Un enlace ya registrado no se edita: la fila de la planilla no cambiaría.
+    item.campo.disabled = subidaEnCurso || item.estado === "subida";
+    item.botonQuitar.disabled = subidaEnCurso;
+
+    const mensaje = textoDeEstadoEnlace(item);
+    item.estadoNodo.textContent = mensaje;
+    item.estadoNodo.hidden = mensaje === "";
+}
+
+function textoDeEstadoEnlace(item) {
+    if (item.estado === "subiendo") return "Comprobando el video…";
+    if (item.estado === "error") return "Error — " + item.mensajeEstado;
+
+    if (item.estado === "subida") {
+        return "✓ " + (item.titulo || "Video registrado") +
+            (item.avisoPortada ? " · en Drive quedó una nota, no la portada" : "");
+    }
+    return "";
+}
+
+
+/* =========================================================
    7. Grilla de previsualizaciones
    ========================================================= */
 
@@ -604,6 +736,14 @@ function actualizarResumen(bloque) {
     if (textosPorSubir > 0) partes.push(textosPorSubir + " texto(s) por subir");
     if (textosGuardados > 0) partes.push(textosGuardados + " texto(s) guardado(s)");
 
+    const enlacesPorSubir = enlacesPorSubirEn(bloque).length;
+    const enlacesGuardados = bloque.enlaces.filter(function (item) {
+        return item.estado === "subida";
+    }).length;
+
+    if (enlacesPorSubir > 0) partes.push(enlacesPorSubir + " video(s) por registrar");
+    if (enlacesGuardados > 0) partes.push(enlacesGuardados + " video(s) registrado(s)");
+
     bloque.resumen.textContent = partes.length > 0 ? partes.join(" · ") + "." : "";
 }
 
@@ -644,9 +784,21 @@ function textosPorSubirEn(bloque) {
     return bloque.textos.filter(faltaSubirTexto);
 }
 
-// Todo lo que falta subir del bloque, sea imagen o texto.
+// Un campo de enlace vacío se ignora. Los que fallaron se reintentan.
+function faltaSubirEnlace(item) {
+    return urlDe(item) !== "" &&
+        (item.estado === "pendiente" || item.estado === "error");
+}
+
+function enlacesPorSubirEn(bloque) {
+    return bloque.enlaces.filter(faltaSubirEnlace);
+}
+
+// Todo lo que falta subir del bloque: imágenes, textos o videos.
 function porSubirEnTotal(bloque) {
-    return porSubirEn(bloque).length + textosPorSubirEn(bloque).length;
+    return porSubirEn(bloque).length +
+        textosPorSubirEn(bloque).length +
+        enlacesPorSubirEn(bloque).length;
 }
 
 function contarPorSubir() {
@@ -656,7 +808,7 @@ function contarPorSubir() {
 }
 
 // Un bloque está listo cuando tiene curso elegido y algo por subir:
-// imágenes, textos o ambos. No se exige ninguno de los dos en particular.
+// imágenes, textos, videos o cualquier combinación. Ninguno es obligatorio.
 function bloqueListo(bloque) {
     return bloque.selectCurso.value !== "" && porSubirEnTotal(bloque) > 0;
 }
@@ -784,11 +936,23 @@ function llamarAlServidor(funcion, carga) {
             return;
         }
 
-        google.script.run
-            .withSuccessHandler(resolver)
-            .withFailureHandler(function (error) {
-                resolver({ exito: false, mensaje: error.message || "Error del servidor." });
-            })[funcion](carga);
+        try {
+            google.script.run
+                .withSuccessHandler(resolver)
+                .withFailureHandler(function (error) {
+                    resolver({ exito: false, mensaje: error.message || "Error del servidor." });
+                })[funcion](carga);
+
+        } catch (error) {
+            // Pasa si el code.gs desplegado no tiene esa función todavía.
+            // Sin esto la promesa se rechazaba y la tanda entera se cortaba
+            // sin decir nada, dejando el botón en "Subiendo…".
+            resolver({
+                exito: false,
+                mensaje: "El servidor no reconoce «" + funcion + "». " +
+                    "Puede que el código desplegado esté desactualizado."
+            });
+        }
     });
 }
 
@@ -815,14 +979,36 @@ async function subirUnaImagen(item, datosBase) {
 }
 
 // Un texto no se comprime ni se pasa a base64: va tal cual y sube al instante.
-function subirUnTexto(item, datosBase) {
-    return llamarAlServidor("subirTexto", {
-        nombre: datosBase.nombre,
-        linea: datosBase.linea,
-        curso: datosBase.curso,
-        codigoCurso: datosBase.codigoCurso,
-        contenido: contenidoDe(item)
-    });
+async function subirUnTexto(item, datosBase) {
+    try {
+        return await llamarAlServidor("subirTexto", {
+            nombre: datosBase.nombre,
+            linea: datosBase.linea,
+            curso: datosBase.curso,
+            codigoCurso: datosBase.codigoCurso,
+            contenido: contenidoDe(item)
+        });
+
+    } catch (error) {
+        return { exito: false, mensaje: error.message };
+    }
+}
+
+// Del enlace solo viaja la URL: el servidor saca el id, le pregunta a
+// YouTube si el video se puede ver, y guarda la portada.
+async function registrarUnEnlace(item, datosBase) {
+    try {
+        return await llamarAlServidor("agregarVideoYoutube", {
+            nombre: datosBase.nombre,
+            linea: datosBase.linea,
+            curso: datosBase.curso,
+            codigoCurso: datosBase.codigoCurso,
+            url: urlDe(item)
+        });
+
+    } catch (error) {
+        return { exito: false, mensaje: error.message };
+    }
 }
 
 async function manejarEnvio(evento) {
@@ -916,6 +1102,36 @@ async function manejarEnvio(evento) {
             hechas++;
             mostrarAvance(hechas, total);
             repintarTexto(item);
+            actualizarResumen(bloque);
+        }
+
+        // Los videos van al final: no suben bytes, solo registran el enlace.
+        for (const item of enlacesPorSubirEn(bloque)) {
+            item.estado = "subiendo";
+            item.mensajeEstado = "";
+            repintarEnlace(item);
+
+            const respuesta = await registrarUnEnlace(item, datosBase);
+
+            if (respuesta && respuesta.exito) {
+                item.estado = "subida";
+                item.titulo = respuesta.titulo || "";
+                item.urlVideo = respuesta.url;
+                item.errorPlanilla = respuesta.errorPlanilla || "";
+                // Sin portada el archivo igual queda registrado, pero conviene saberlo.
+                item.avisoPortada = respuesta.sinPortada === true;
+                archivosDelCurso.push(respuesta.nombreArchivo || respuesta.url);
+                urlCarpetaCurso = respuesta.urlCarpetaCurso || urlCarpetaCurso;
+                logradasAqui++;
+                logradas++;
+            } else {
+                item.estado = "error";
+                item.mensajeEstado = (respuesta && respuesta.mensaje) || "Error desconocido.";
+            }
+
+            hechas++;
+            mostrarAvance(hechas, total);
+            repintarEnlace(item);
             actualizarResumen(bloque);
         }
 
