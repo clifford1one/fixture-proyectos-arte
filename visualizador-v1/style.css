@@ -343,8 +343,8 @@
   .obra.orbitando:hover,
   .obra.orbitando:focus-visible { transform: translate(-50%, -50%) scale(1.14); }
 
-  /* La miniatura la sirve Drive. Si no carga, queda el rectángulo
-     gris de fondo: la ficha sigue siendo utilizable. */
+  /* Cubre la ficha entera y es lo que la abre. La miniatura va adentro;
+     si no carga, queda el rectángulo gris y la ficha sigue sirviendo. */
   .obra-abrir {
     position: absolute;
     inset: 0;

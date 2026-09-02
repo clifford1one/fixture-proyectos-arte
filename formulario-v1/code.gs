@@ -105,7 +105,7 @@ function subirImagen(datos) {
 
     // El archivo se renombra: el que manda el cliente solo aporta la extensión.
     const nombreArchivo = construirNombreArchivo(
-      carpetas.curso, nombreEstudiante, datos.codigoCurso, datos.curso,
+      carpetas.curso, 'imagen', nombreEstudiante, datos.codigoCurso, datos.curso,
       extensionDe(datos.nombreArchivo));
 
     // Del base64 al archivo en Drive. No se tocan los permisos:
@@ -163,7 +163,7 @@ function subirTexto(datos) {
     const carpetas = prepararCarpetas(nombreEstudiante, datos.linea, datos.curso);
 
     const nombreArchivo = construirNombreArchivo(
-      carpetas.curso, nombreEstudiante, datos.codigoCurso, datos.curso, 'txt');
+      carpetas.curso, 'texto', nombreEstudiante, datos.codigoCurso, datos.curso, 'txt');
 
     // newBlob con un String guarda en UTF-8: las tildes y la ñ quedan bien.
     const blob = Utilities.newBlob(contenido, 'text/plain', nombreArchivo);
@@ -329,8 +329,10 @@ function agregarVideoYoutube(datos) {
 
     // El video entra en la misma numeración que las imágenes y los textos
     // del curso. Se arma el nombre sin extensión: la pone quien guarde.
+    // En la planilla el tipo es "youtube", pero en el nombre del archivo va
+    // "video": es lo que se lee al recorrer la carpeta en Drive.
     const conExtension = construirNombreArchivo(
-      carpetas.curso, nombreEstudiante, datos.codigoCurso, datos.curso, 'jpg');
+      carpetas.curso, 'video', nombreEstudiante, datos.codigoCurso, datos.curso, 'jpg');
     const nombreBase = conExtension.slice(0, -4);
 
     // Siempre queda algo en la carpeta: la portada si se pudo bajar, y si
@@ -412,10 +414,15 @@ function registrarEnPlanilla(fila) {
 
 /* =========================================================
    5. Nombre del archivo
-   Queda: juanPerez-ART03113-01.webp
-   El código de asignatura va en vez del nombre del curso: es corto,
-   estable ante renombres y sirve para ordenar el archivo. La línea no
-   se incluye porque se deduce del curso.
+   Queda: imagen-ART03113-juanPerez-01.webp
+
+   Cuatro campos separados por guion: tipo, código de asignatura,
+   estudiante y correlativo.
+
+   El código va en vez del nombre del curso porque es corto y estable
+   ante renombres; la línea no se incluye porque se deduce del curso.
+   El nombre del estudiante va en camelCase y no en minúsculas con
+   guion, para que un apellido no se confunda con un campo más.
    ========================================================= */
 
 // Quita tildes y deja solo minúsculas, números y guiones.
@@ -464,13 +471,15 @@ function siguienteCorrelativo(carpeta, prefijo) {
   return cuenta + 1;
 }
 
-function construirNombreArchivo(carpeta, nombreEstudiante, codigoCurso, curso, extension) {
-  const prefijo = aCamelCase(nombreEstudiante) + '-' + claveDeCurso(codigoCurso, curso) + '-';
+function construirNombreArchivo(carpeta, tipo, nombreEstudiante, codigoCurso, curso, extension) {
+  const prefijo = tipo + '-' + claveDeCurso(codigoCurso, curso) + '-' +
+    aCamelCase(nombreEstudiante) + '-';
+
   const numero = siguienteCorrelativo(carpeta, prefijo);
   const correlativo = numero < 10 ? '0' + numero : String(numero);
 
-  // El correlativo no distingue imágenes de textos: cuenta por prefijo, así que
-  // una carpeta queda 01.webp, 02.txt, 03.webp, en el orden en que llegaron.
+  // Con el tipo dentro del prefijo, el correlativo cuenta por tipo: las
+  // imágenes de un curso van 01, 02, 03 y los textos empiezan de nuevo en 01.
   return prefijo + correlativo + '.' + extension;
 }
 
@@ -618,7 +627,145 @@ function diagnostico() {
     Logger.log('MailApp falló: %s', error.message);
   }
 
+  diagnosticarDrive();
+  diagnosticarPlanilla();
   diagnosticarYoutube();
+}
+
+
+/* La planilla es un archivo aparte de la carpeta, con sus propios
+   permisos: se puede tener Editor en una y no en la otra. Cuando pasa,
+   los archivos se suben bien y la fila no se escribe — y como
+   registrarEnPlanilla() no lanza, la subida se ve exitosa. */
+function diagnosticarPlanilla() {
+  Logger.log('--- Planilla ---');
+
+  const correo = Session.getActiveUser().getEmail();
+  let hoja;
+
+  // 1. Abrirla.
+  try {
+    const libro = SpreadsheetApp.openById(SPREADSHEET_ID);
+    hoja = libro.getSheets()[0];
+    Logger.log('Planilla: "%s" — hoja "%s", %s filas',
+      libro.getName(), hoja.getName(), hoja.getLastRow());
+  } catch (error) {
+    Logger.log('No se pudo abrir: %s', error.message);
+    Logger.log('Revisa SPREADSHEET_ID y que la cuenta tenga acceso al archivo.');
+    return;
+  }
+
+  // 2. Dueño y nivel de acceso, igual que con la carpeta.
+  try {
+    const comoArchivo = DriveApp.getFileById(SPREADSHEET_ID);
+    Logger.log('Dueño: %s', comoArchivo.getOwner().getEmail());
+    Logger.log('Acceso de %s: %s', correo, String(comoArchivo.getAccess(correo)));
+  } catch (error) {
+    Logger.log('No se pudo leer dueño ni acceso: %s', error.message);
+  }
+
+  // 3. Los encabezados. Si faltan columnas, las filas entran con datos
+  //    sin título y cuesta darse cuenta.
+  const titulos = hoja.getLastRow() > 0
+    ? hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0]
+    : [];
+
+  if (titulos.length === 0) {
+    Logger.log('La hoja está vacía: los encabezados se van a escribir solos.');
+  } else {
+    Logger.log('Encabezados (%s): %s', titulos.length, titulos.join(' · '));
+
+    if (titulos.length < ENCABEZADOS.length) {
+      Logger.log('Faltan %s columna(s). Deberían ser: %s',
+        ENCABEZADOS.length - titulos.length, ENCABEZADOS.join(' · '));
+    }
+  }
+
+  // 4. Probar que se puede escribir, sin tocar los datos: se crea una
+  //    hoja auxiliar y se borra.
+  try {
+    const libro = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const prueba = libro.insertSheet('prueba-permisos');
+    libro.deleteSheet(prueba);
+    Logger.log('Escribir en la planilla: SÍ');
+    Logger.log('=> La planilla está bien.');
+
+  } catch (error) {
+    Logger.log('Escribir en la planilla: NO — %s', error.message);
+    Logger.log('=> Los archivos se van a subir a Drive pero la fila no se escribe.');
+    Logger.log('   Dale permiso de Editor a %s sobre la planilla.', correo);
+  }
+}
+
+
+/* "Access denied: DriveApp" al escribir tiene dos causas posibles y se
+   arreglan de forma distinta: o la cuenta no tiene permiso de edición
+   sobre la carpeta, o el permiso de Drive que se autorizó es de solo
+   lectura. Esto las separa probando escribir en dos lugares. */
+function diagnosticarDrive() {
+  Logger.log('--- Drive ---');
+
+  const correo = Session.getActiveUser().getEmail();
+  let carpeta;
+
+  // 1. Leer la carpeta.
+  try {
+    carpeta = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+    Logger.log('Carpeta: "%s"', carpeta.getName());
+  } catch (error) {
+    Logger.log('No se pudo ni abrir la carpeta: %s', error.message);
+    Logger.log('Revisa que DRIVE_FOLDER_ID sea correcto y que la cuenta tenga acceso.');
+    return;
+  }
+
+  // 2. Quién es el dueño y qué acceso tenemos.
+  try {
+    Logger.log('Dueño: %s', carpeta.getOwner().getEmail());
+  } catch (error) {
+    Logger.log('Sin dueño visible: %s (normal en una unidad compartida)', error.message);
+  }
+
+  try {
+    Logger.log('Acceso de %s: %s', correo, String(carpeta.getAccess(correo)));
+  } catch (error) {
+    Logger.log('No se pudo leer el nivel de acceso: %s', error.message);
+  }
+
+  // 3. Escribir en la raíz del Drive de esta cuenta. Si esto falla, el
+  //    problema es el permiso de Drive, no la carpeta.
+  let escribeEnRaiz = false;
+  try {
+    const suelto = DriveApp.createFile('prueba-permisos.txt', 'x', 'text/plain');
+    suelto.setTrashed(true);
+    escribeEnRaiz = true;
+    Logger.log('Escribir en tu Drive: SÍ');
+  } catch (error) {
+    Logger.log('Escribir en tu Drive: NO — %s', error.message);
+  }
+
+  // 4. Escribir dentro de la carpeta del archivo.
+  let escribeEnCarpeta = false;
+  try {
+    const dentro = carpeta.createFile('prueba-permisos.txt', 'x', 'text/plain');
+    dentro.setTrashed(true);
+    escribeEnCarpeta = true;
+    Logger.log('Escribir en la carpeta del archivo: SÍ');
+  } catch (error) {
+    Logger.log('Escribir en la carpeta del archivo: NO — %s', error.message);
+  }
+
+  // 5. El veredicto.
+  if (escribeEnCarpeta) {
+    Logger.log('=> Drive está bien. Si el formulario falla, es por otra cosa.');
+  } else if (escribeEnRaiz) {
+    Logger.log('=> La cuenta puede escribir en Drive pero NO en esa carpeta.');
+    Logger.log('   Dale permiso de Editor a %s sobre la carpeta.', correo);
+  } else {
+    Logger.log('=> La cuenta no puede escribir en Drive en absoluto.');
+    Logger.log('   El permiso autorizado es de solo lectura, o el dominio lo restringe.');
+    Logger.log('   Revisa oauthScopes en appsscript.json: si aparece drive.readonly');
+    Logger.log('   o drive.file, cámbialo por .../auth/drive y vuelve a autorizar.');
+  }
 }
 
 

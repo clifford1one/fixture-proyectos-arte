@@ -134,14 +134,24 @@ carpeta raíz
 └── juanPerez/
     └── Imagen y tecnología/
         └── Imagen fija/
-            ├── juanPerez-ART03215-01.webp
-            ├── juanPerez-ART03215-02.txt
-            └── juanPerez-ART03215-03.webp
+            ├── imagen-ART03215-juanPerez-01.webp
+            ├── imagen-ART03215-juanPerez-02.webp
+            ├── texto-ART03215-juanPerez-01.txt
+            └── video-ART03215-juanPerez-01.jpg
 ```
 
-El correlativo no distingue imágenes de textos: cuenta por prefijo, así que la
-numeración es una sola secuencia cronológica por curso y la extensión dice de qué
-se trata cada archivo.
+El nombre son cuatro campos separados por guion:
+
+`tipo` · `código de asignatura` · `estudiante` · `correlativo`
+
+El tipo es `imagen`, `texto` o `video` — este último para los enlaces de YouTube,
+aunque en la planilla la columna `tipo` diga `youtube`. Como el tipo está en el
+prefijo, **el correlativo cuenta por tipo**: las imágenes de un curso van 01, 02,
+03 y los textos empiezan de nuevo en 01.
+
+El nombre del estudiante va en camelCase (`mariaJoseFernandez`) y no en minúsculas
+con guion. Con guiones, un apellido parecería un campo más y el nombre dejaría de
+poder leerse por posición.
 
 Las carpetas llevan el nombre del curso; el archivo lleva el **código de
 asignatura**. Es una comodidad de orden interno: el estudiante nunca ve el código
@@ -149,7 +159,7 @@ en el formulario, solo en el nombre del archivo ya guardado. Los códigos son lo
 de la Malla Curricular Plan 3.0 de Artes Visuales y viven junto a cada curso en
 `LINEAS_CURRICULARES` (`script.js`).
 
-Un curso sin código cae al nombre en slug (`juanPerez-imagen-fija-01.webp`), así
+Un curso sin código cae al nombre en slug (`imagen-imagen-fija-juanPerez-01.webp`), así
 que agregar un curso nuevo sin código no rompe nada.
 
 El nombre del archivo lo arma el servidor, no el cliente. El correlativo se cuenta
@@ -166,7 +176,7 @@ dentro de la carpeta del curso, así que la numeración continúa entre visitas.
 | - | - | - | - |
 | `imagen` | el `.webp` en Drive | vacío | vacío |
 | `texto` | el `.txt` en Drive | el texto | vacío |
-| `youtube` | lo que quedó en Drive: la **portada** `.jpg`, o una nota `.txt` | el título del video | la URL del video |
+| `youtube` | lo que quedó en Drive: la **portada** `.jpg`, o una nota `.txt`. El archivo se llama `video-…` | el título del video | la URL del video |
 
 Las columnas nuevas van **siempre al final**: `appendRow` escribe por posición, así
 que insertar una al medio desalinearía todas las filas ya escritas. Por lo mismo,

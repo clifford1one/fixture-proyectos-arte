@@ -20,6 +20,3 @@ Las imágenes deben ser subidas en formato PNG, JPG o JPEG(el formulario no admi
 - [Figma](https://www.figma.com/design/xB1jiXFWYulmg4Y4SKU6sI/Untitled?node-id=0-1&t=SHY686y8YMhoaTeC-1)
 
 - [sketch de p5.js](https://editor.p5js.org/clifford1one/full/PClDLQECW)
-
-
-

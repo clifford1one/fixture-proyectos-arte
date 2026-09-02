@@ -174,6 +174,13 @@ function idDeYoutube(url) {
 // Solo para filas viejas, anteriores a la columna "tipo".
 function tipoSegunArchivo(nombreArchivo) {
   const nombre = String(nombreArchivo || '').toLowerCase();
+
+  // Los nombres nuevos empiezan por el tipo: imagen-ART03113-juanPerez-01.webp
+  if (nombre.indexOf('imagen-') === 0) return 'imagen';
+  if (nombre.indexOf('texto-') === 0) return 'texto';
+  if (nombre.indexOf('video-') === 0) return 'youtube';
+
+  // Los viejos solo tienen la extensión.
   if (nombre.slice(-4) === '.txt') return 'texto';
   if (nombre.slice(-4) === '.mp4' || nombre.slice(-4) === '.mov') return 'video';
   return 'imagen';

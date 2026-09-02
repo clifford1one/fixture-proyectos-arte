@@ -87,6 +87,9 @@ const DATOS_EJEMPLO = (function () {
   ];
 
   const EXTENSION = { imagen: 'webp', texto: 'txt', video: 'mp4', youtube: 'jpg' };
+
+  // En el nombre del archivo los de YouTube van como "video".
+  const NOMBRE_TIPO = { imagen: 'imagen', texto: 'texto', video: 'video', youtube: 'video' };
   let cuentaTexto = 0;
 
   // Videos reales, para poder ver el embed funcionando al abrir el
@@ -105,7 +108,8 @@ const DATOS_EJEMPLO = (function () {
       estudiante: 'Camila Ferrada',
       linea: fila[0],
       curso: fila[1],
-      archivo: 'camilaFerrada-' + fila[2] + '-' + numero + '.' + EXTENSION[tipo],
+      archivo: NOMBRE_TIPO[tipo] + '-' + fila[2] + '-camilaFerrada-' + numero +
+        '.' + EXTENSION[tipo],
       tipo: tipo,
       contenido: tipo === 'texto' ? TEXTOS[cuentaTexto++ % TEXTOS.length] : '',
       idVideo: idVideo,

@@ -23,6 +23,7 @@ necesita su propio `doGet()` y su propia configuración de despliegue.
 | `script.js` | Lógica del navegador: órbitas, las dos vistas, selección múltiple |
 | `datos-ejemplo.js` | Datos falsos para poder abrir la página sin desplegarla. **No se sube a Apps Script** |
 | `prueba-embed.gs` | Prueba desechable de una sola pregunta: si un video de YouTube se ve dentro de un web app. Va en un proyecto aparte y se borra después |
+| `preparar-appsscript.py` | Deja los archivos listos para pegar. **No se sube a Apps Script** |
 
 `index.html` se puede abrir directo desde el explorador: carga `datos-ejemplo.js`
 y se ve la página completa, con rectángulos grises en vez de imágenes porque los
@@ -133,37 +134,54 @@ diez. El estado se ve arriba a la derecha (`Guardando…` / `Guardado`).
 
 ## Publicar en Apps Script
 
-Igual que el formulario: el editor solo acepta `.gs` y `.html`, así que el CSS y
-el JS no pueden ir sueltos.
+El editor solo acepta `.gs` y `.html`, así que `style.css` y `script.js` no se
+pueden subir sueltos. En vez de partirlos en archivos aparte, se meten dentro
+del `index.html`: la página servida es idéntica y en Apps Script queda **un solo
+archivo** en lugar de tres.
 
-| Archivo local | En Apps Script |
+```
+python visualizador-v1/preparar-appsscript.py
+```
+
+Deja `para-appsscript/index.html` con el CSS, el JS y el marcado adentro. En
+Apps Script son dos archivos:
+
+| En Apps Script | De dónde sale |
 | - | - |
-| `code.gs` | `code.gs` |
-| `index.html` | `index.html`, con el `<head>` cambiado (ver abajo) |
-| `style.css` | `style.html`, con el CSS dentro de `<style>` |
-| `script.js` | `script.html`, con el JS dentro de `<script>` |
-| `datos-ejemplo.js` | no se sube |
+| `index.html` | `para-appsscript/index.html` |
+| `code.gs` | `code.gs`, tal cual |
 
-En `index.html`, las tres líneas del `<head>` que sirven para abrirlo suelto:
+Al pegar en `index.html`, borra primero lo que Apps Script trae de ejemplo.
 
-```html
-<link rel="stylesheet" href="style.css">
-<script src="datos-ejemplo.js"></script>
-<script src="script.js" defer></script>
-```
+Vuelve a correr el script cada vez que cambies `index.html`, `style.css` o
+`script.js`. `para-appsscript/` es generado: se puede borrar cuando sea.
 
-pasan a ser, en el `<head>` la primera y al final del `<body>` las otras dos:
+### Qué hace la conversión
 
-```html
-<?!= include('style'); ?>
-...
-<script>const DATOS = <?!= datosJson ?>;</script>
-<?!= include('script'); ?>
-```
+Tres cosas, y ninguna cambia cómo funciona la página:
+
+- Quita las líneas del `<head>` que sirven para abrir el archivo suelto y mete
+  el CSS en un `<style>`.
+- Agrega `<base target="_top">`, para que los enlaces salgan del iframe de Apps
+  Script en vez de abrirse dentro.
+- Al final del `<body>` pone la inyección de datos y el JS:
+
+  ```html
+  <script>const DATOS = <?!= datosJson ?>;</script>
+  <script> …script.js… </script>
+  ```
 
 `script.js` no cambia: usa `DATOS` si existe y `DATOS_EJEMPLO` si no, así que el
-mismo archivo sirve en los dos lados. Y conviene agregar `<base target="_top">`
-en el `<head>`, para que los enlaces salgan del iframe de Apps Script.
+mismo archivo sirve abierto en el explorador y desplegado.
+
+`<?!= datosJson ?>` es lo único que obliga a que `doGet()` use
+`createTemplateFromFile('index').evaluate()`. La función `include()` de `code.gs`
+queda sin uso con este esquema; se deja por si alguna vez conviene volver a
+separar los archivos.
+
+Antes de pegar, el script revisa que el CSS no contenga `</style>` ni el JS
+`</script>`: cualquiera de los dos cerraría su bloque antes de tiempo y rompería
+la página sin decir nada.
 
 ### Configuración del despliegue
 
@@ -192,11 +210,18 @@ Es lo primero que hay que correr si algo no aparece.
 
 ## Pendientes y cosas por verificar
 
-- **Las miniaturas dependen del dominio.** Se piden a
-  `drive.google.com/thumbnail?id=…`, que necesita que el archivo sea legible por
-  quien mira. Si la política de Workspace lo bloquea, la imagen falla y queda el
-  rectángulo gris: la página sigue funcionando, pero sin ver nada. **Hay que
-  probarlo con un archivo real antes de mostrárselo a nadie.**
+- **Las miniaturas dependen de los permisos del archivo.** Google necesita que
+  quien mira pueda leer el archivo, y desde dentro del iframe de Apps Script eso
+  falla con frecuencia. `crearImagen()` prueba dos formas en orden
+  —`lh3.googleusercontent.com/d/<id>` y después `drive.google.com/thumbnail`— y
+  manda `referrerPolicy="no-referrer"`, que es lo que evita el 403 al venir
+  desde un iframe. Si ninguna carga, queda el rectángulo gris y la ficha sigue
+  siendo utilizable.
+
+  Si siguen sin verse, el problema son los permisos, no el código: la salida es
+  que los archivos queden legibles por enlace. Eso es una decisión de privacidad,
+  no un ajuste técnico — es la pregunta que está pendiente con TI. Las portadas
+  de YouTube no tienen este problema: son públicas y por eso se piden primero.
 - **Sin probar en Apps Script.** El código está verificado sintácticamente y la
   geometría de las órbitas y la lógica del lote tienen pruebas, pero nada de esto
   se ha ejecutado todavía contra la planilla real.

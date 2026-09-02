@@ -1165,8 +1165,22 @@ async function manejarEnvio(evento) {
         return;
     }
 
+    // El detalle está en cada ficha, pero obliga a buscarlo. Se repite acá
+    // el primer error: casi siempre todos fallan por lo mismo.
     avisoEnvio.textContent =
-        logradas + " guardado(s), " + fallidas + " con error. Puedes volver a enviar para reintentar.";
+        logradas + " guardado(s), " + fallidas + " con error. " +
+        primerError() + "Puedes volver a enviar para reintentar.";
+}
+
+// El mensaje del primer elemento que falló, listo para concatenar.
+function primerError() {
+    for (const bloque of bloques) {
+        const conError = bloque.imagenes.concat(bloque.textos, bloque.enlaces)
+            .find(function (item) { return item.estado === "error"; });
+
+        if (conError && conError.mensajeEstado) return conError.mensajeEstado + " ";
+    }
+    return "";
 }
 
 // Barra y porcentaje. No mide bytes: cuenta archivos terminados.
