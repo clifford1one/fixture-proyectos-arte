@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Archivo de prácticas — Subida de trabajos</title>
 
-  <link rel="stylesheet" href="style.css">
-  <script src="script.js" defer></script>
+  <!-- Los estilos van más abajo en este mismo archivo y el script al final
+       del body: Apps Script no sirve archivos sueltos. -->
 <style>
     /* ---------- Tipografías ----------
      Van en base64 porque el editor de Apps Script solo acepta .gs y .html:
@@ -775,7 +775,7 @@
 
     <header class="encabezado">
       <h1>Archivo de prácticas</h1>
-      <p>En esta plataforma podrás compilar tu archivo del registro de todos los <b>procesos materiales y conceptuales</b> que has realizado <b>entre el 1er y 4to semestre</b> de la carrera, esto incluye todas las asignaturas que has cursado. Es relevante que subas para cada asignatura el registro de <b>bocetos, experimentos, diagramas, bitácoras, videos, textos, referentes o trabajos finales</b>, que den cuenta de los distintos procesos realizados. En el caso de asignaturas teóricas puedes también rescatar una <b>cita, apunte o fragmento</b> del algún trabajo, de no más de 500 palabras. <b>Todas las asignaturas deben tener algún registro.</b><br><br> Selecciona el curso, carga la imagen (de no más de 10 megas) y se guardará automáticamente en la carpeta asociada al nombre que ingresas <b>la primera vez que envíes el formulario.</b> Puedes revisar tus carpetas <a href="https://drive.google.com/drive/folders/1TfjGEABWqdrUGu20V9WQAUn3FTTyGnmh?usp=sharing" target="_blank" rel="noopener">aquí.</a></p>
+      <p>En esta plataforma podrás compilar tu archivo del registro de todos los <b>procesos materiales y conceptuales</b> que has realizado <b>entre el 1er y 4to semestre</b> de la carrera, esto incluye todas las asignaturas que has cursado. Es relevante que subas para cada asignatura el registro de <b>bocetos, experimentos, diagramas, bitácoras, videos, textos, referentes o trabajos finales</b>, que den cuenta de los distintos procesos realizados. En el caso de asignaturas teóricas puedes también rescatar una <b>cita, apunte o fragmento</b> del algún trabajo, de no más de 500 palabras. <b>Todas las asignaturas deben tener algún registro.</b><br><br> Selecciona el curso, carga la imagen (de no más de 10 megas) y se guardará automáticamente en la carpeta asociada al nombre que ingresas <b>la primera vez que envíes el formulario.</b> Puedes revisar tus carpetas <a href="https://drive.google.com/drive/folders/1P2kGjI01BXKrG-VnS7ZO3ZM1LS5gshcL?usp=sharing" target="_blank" rel="noopener">aquí.</a></p>
     </header>
 
     <form id="formulario" novalidate>
@@ -2050,8 +2050,22 @@ async function manejarEnvio(evento) {
         return;
     }
 
+    // El detalle está en cada ficha, pero obliga a buscarlo. Se repite acá
+    // el primer error: casi siempre todos fallan por lo mismo.
     avisoEnvio.textContent =
-        logradas + " guardado(s), " + fallidas + " con error. Puedes volver a enviar para reintentar.";
+        logradas + " guardado(s), " + fallidas + " con error. " +
+        primerError() + "Puedes volver a enviar para reintentar.";
+}
+
+// El mensaje del primer elemento que falló, listo para concatenar.
+function primerError() {
+    for (const bloque of bloques) {
+        const conError = bloque.imagenes.concat(bloque.textos, bloque.enlaces)
+            .find(function (item) { return item.estado === "error"; });
+
+        if (conError && conError.mensajeEstado) return conError.mensajeEstado + " ";
+    }
+    return "";
 }
 
 // Barra y porcentaje. No mide bytes: cuenta archivos terminados.
