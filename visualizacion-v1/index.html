@@ -131,6 +131,13 @@
         grid-template-rows var(--paso) var(--curva);
     }
 
+    /* Una clase por sección ampliada en vez de estilo inline: así el
+       media query de pantallas chicas puede sobrescribir la grilla. */
+    .tablero.amp-0 { grid-template-columns: 1fr 0fr; grid-template-rows: 1fr 0fr; }
+    .tablero.amp-1 { grid-template-columns: 0fr 1fr; grid-template-rows: 1fr 0fr; }
+    .tablero.amp-2 { grid-template-columns: 1fr 0fr; grid-template-rows: 0fr 1fr; }
+    .tablero.amp-3 { grid-template-columns: 0fr 1fr; grid-template-rows: 0fr 1fr; }
+
     .seccion {
       display: flex;
       flex-direction: column;
@@ -531,8 +538,20 @@
       /* En celular la grilla 2×2 no cabe: las secciones se apilan
          y la vista general vuelve a tener scroll. */
       body { overflow: auto; }
-      .tablero { grid-template-columns: 1fr; grid-template-rows: none; }
+
+      .tablero,
+      .tablero.amp-0, .tablero.amp-1,
+      .tablero.amp-2, .tablero.amp-3 {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+      }
+
       .seccion { min-height: 70vh; }
+
+      /* Apiladas, una sección colapsada dejaría 70vh en blanco: al
+         ampliar, las demás salen del flujo en vez de encogerse. */
+      .tablero.ampliada .seccion.apagada { display: none; }
+      .tablero.ampliada .seccion:not(.apagada) { min-height: 85vh; }
       .barra { padding: 1rem 1.125rem; }
       .flecha.previa { left: 0.5rem; }
       .flecha.siguiente { right: 0.5rem; }
@@ -569,7 +588,7 @@
   </div>
 
   <!-- Obra en primer plano -->
-  <div class="telon" id="telon" role="dialog" aria-modal="true" aria-label="Obra">
+  <div class="telon" id="telon" role="dialog" aria-modal="true" aria-label="Obra" inert>
     <button type="button" class="flecha previa" id="previa" aria-label="Obra anterior">←</button>
 
     <div class="visor">
@@ -624,46 +643,46 @@
        abrir, las 40 están solo en "Todos los proyectos".
        ========================================================= */
     const CRUDO = [
-      ["Talleres", "Taller de operaciones y procedimientos visuales"],
-      ["Talleres", "Taller de operaciones y procedimientos visuales"],
-      ["Talleres", "Taller de operaciones y procedimientos visuales"],
-      ["Talleres", "Taller de prácticas artísticas I"],
-      ["Talleres", "Taller de prácticas artísticas I"],
-      ["Talleres", "Taller de prácticas artísticas I"],
-      ["Talleres", "Taller de prácticas artísticas II"],
-      ["Talleres", "Taller de prácticas artísticas II"],
-      ["Estudios visuales", "Introducción a las vanguardias artísticas"],
-      ["Estudios visuales", "Introducción a las vanguardias artísticas"],
-      ["Estudios visuales", "Introducción al arte contemporáneo"],
-      ["Estudios visuales", "Introducción al arte contemporáneo"],
-      ["Estudios visuales", "Arte contemporáneo en Chile y Latinoamérica"],
-      ["Estudios visuales", "Teoría de la imagen"],
-      ["Estudios visuales", "Teoría de la imagen"],
-      ["Lenguajes artísticos", "Dibujo y observación I"],
-      ["Lenguajes artísticos", "Dibujo y observación I"],
-      ["Lenguajes artísticos", "Dibujo y observación I"],
-      ["Lenguajes artísticos", "Dibujo y observación II"],
-      ["Lenguajes artísticos", "Dibujo y observación II"],
-      ["Lenguajes artísticos", "Técnicas escultóricas"],
-      ["Lenguajes artísticos", "Técnicas escultóricas"],
-      ["Lenguajes artísticos", "Técnicas escultóricas"],
-      ["Lenguajes artísticos", "Técnicas pictóricas"],
-      ["Lenguajes artísticos", "Técnicas pictóricas"],
-      ["Lenguajes artísticos", "Lenguajes escultóricos"],
-      ["Lenguajes artísticos", "Lenguajes escultóricos"],
-      ["Lenguajes artísticos", "Lenguajes pictóricos"],
-      ["Lenguajes artísticos", "Lenguajes pictóricos"],
-      ["Imagen y tecnología", "Medios gráficos"],
-      ["Imagen y tecnología", "Medios gráficos"],
-      ["Imagen y tecnología", "Medios digitales"],
-      ["Imagen y tecnología", "Medios digitales"],
-      ["Imagen y tecnología", "Imagen fija"],
-      ["Imagen y tecnología", "Imagen fija"],
-      ["Imagen y tecnología", "Imagen en movimiento"],
-      ["Imagen y tecnología", "Imagen en movimiento"],
-      ["Imagen y tecnología", "Imagen en movimiento"],
-      ["Gestión", "Circuitos artísticos"],
-      ["Gestión", "Circuitos artísticos"]
+      ["q7f2", "Talleres", "Taller de operaciones y procedimientos visuales"],
+      ["m4k9", "Talleres", "Taller de operaciones y procedimientos visuales"],
+      ["t8b3", "Talleres", "Taller de operaciones y procedimientos visuales"],
+      ["w2n6", "Talleres", "Taller de prácticas artísticas I"],
+      ["h5r1", "Talleres", "Taller de prácticas artísticas I"],
+      ["z9c4", "Talleres", "Taller de prácticas artísticas I"],
+      ["v3j7", "Talleres", "Taller de prácticas artísticas II"],
+      ["b6x8", "Talleres", "Taller de prácticas artísticas II"],
+      ["n1d5", "Estudios visuales", "Introducción a las vanguardias artísticas"],
+      ["k8g2", "Estudios visuales", "Introducción a las vanguardias artísticas"],
+      ["r4t9", "Estudios visuales", "Introducción al arte contemporáneo"],
+      ["c7m3", "Estudios visuales", "Introducción al arte contemporáneo"],
+      ["x2p6", "Estudios visuales", "Arte contemporáneo en Chile y Latinoamérica"],
+      ["j5w1", "Estudios visuales", "Teoría de la imagen"],
+      ["f9h4", "Estudios visuales", "Teoría de la imagen"],
+      ["d3z7", "Lenguajes artísticos", "Dibujo y observación I"],
+      ["g6q8", "Lenguajes artísticos", "Dibujo y observación I"],
+      ["p1v5", "Lenguajes artísticos", "Dibujo y observación I"],
+      ["s8n2", "Lenguajes artísticos", "Dibujo y observación II"],
+      ["y4b9", "Lenguajes artísticos", "Dibujo y observación II"],
+      ["l7k3", "Lenguajes artísticos", "Técnicas escultóricas"],
+      ["a2r6", "Lenguajes artísticos", "Técnicas escultóricas"],
+      ["e5c1", "Lenguajes artísticos", "Técnicas escultóricas"],
+      ["u9x4", "Lenguajes artísticos", "Técnicas pictóricas"],
+      ["i3g7", "Lenguajes artísticos", "Técnicas pictóricas"],
+      ["o6d8", "Lenguajes artísticos", "Lenguajes escultóricos"],
+      ["q1m5", "Lenguajes artísticos", "Lenguajes escultóricos"],
+      ["w8t2", "Lenguajes artísticos", "Lenguajes pictóricos"],
+      ["h4j9", "Lenguajes artísticos", "Lenguajes pictóricos"],
+      ["z7p3", "Imagen y tecnología", "Medios gráficos"],
+      ["v2s6", "Imagen y tecnología", "Medios gráficos"],
+      ["b9f1", "Imagen y tecnología", "Medios digitales"],
+      ["n5w4", "Imagen y tecnología", "Medios digitales"],
+      ["k3y8", "Imagen y tecnología", "Imagen fija"],
+      ["r6l2", "Imagen y tecnología", "Imagen fija"],
+      ["c1a7", "Imagen y tecnología", "Imagen en movimiento"],
+      ["x4e9", "Imagen y tecnología", "Imagen en movimiento"],
+      ["j8u3", "Imagen y tecnología", "Imagen en movimiento"],
+      ["f2i6", "Gestión", "Circuitos artísticos"],
+      ["d7o5", "Gestión", "Circuitos artísticos"]
     ];
 
     const LINEAS = ["Talleres", "Estudios visuales", "Lenguajes artísticos",
@@ -673,9 +692,13 @@
     // mientras no haya imágenes.
     const OBRAS = CRUDO.map(function (fila, i) {
       return {
+        // El id viaja con la fila y no depende de su posición: cuando
+        // los datos vengan de la planilla será el id del archivo en
+        // Drive. El número es solo la etiqueta que se muestra.
+        id: fila[0],
         numero: String(i + 1).padStart(2, "0"),
-        linea: fila[0],
-        curso: fila[1],
+        linea: fila[1],
+        curso: fila[2],
         categorias: []
       };
     });
@@ -708,20 +731,24 @@
       }
     }
 
+    // v1 guardaba por posición en la lista: al insertar una obra las
+    // clasificaciones se corrían de fila. Esta guarda por id.
+    const LLAVE = "asignaciones/v2";
+
     function guardarAsignaciones() {
       const mapa = {};
       OBRAS.forEach(function (obra) {
-        if (obra.categorias.length > 0) mapa[obra.numero] = obra.categorias;
+        if (obra.categorias.length > 0) mapa[obra.id] = obra.categorias;
       });
       try {
-        localStorage.setItem("asignaciones", JSON.stringify(mapa));
+        localStorage.setItem(LLAVE, JSON.stringify(mapa));
       } catch (e) { /* si no se puede guardar, igual se puede usar */ }
     }
 
     function cargarAsignaciones() {
-      const guardadas = leerGuardado("asignaciones", {});
+      const guardadas = leerGuardado(LLAVE, {});
       OBRAS.forEach(function (obra) {
-        obra.categorias = guardadas[obra.numero] || [];
+        obra.categorias = guardadas[obra.id] || [];
       });
     }
 
@@ -732,8 +759,10 @@
       ampliada: null,     // índice de sección ampliada, o null en vista general
       lista: [],          // obras por las que navegan las flechas del visor
       obra: null,         // índice dentro de esa lista, o null si está cerrado
+      rehacerLista: null, // vuelve a calcular esa lista tras un cambio
+      focoPrevio: null,   // a quién devolverle el foco al cerrar el visor
       seleccionando: false,
-      seleccion: []       // números de las obras elegidas para el lote
+      seleccion: []       // ids de las obras elegidas para el lote
     };
 
     const tablero = document.getElementById("tablero");
@@ -741,8 +770,10 @@
     const botonVolver = document.getElementById("volver");
 
     // Obras que le tocan a una sección.
+    // Siempre una copia: quien la guarde para navegar con las flechas
+    // no debe verla mutar por debajo.
     function obrasDe(seccion) {
-      if (!seccion.clave) return OBRAS;
+      if (!seccion.clave) return OBRAS.slice();
       return OBRAS.filter(function (obra) {
         return obra.categorias.indexOf(seccion.clave) !== -1;
       });
@@ -751,7 +782,7 @@
     /* =========================================================
        5. Obras
        ========================================================= */
-    function crearObra(obra, lista, indice) {
+    function crearObra(obra, lista, indice, rehacer) {
       const boton = document.createElement("button");
       boton.type = "button";
       boton.className = "obra";
@@ -759,12 +790,12 @@
       boton.setAttribute("aria-label", "Proyecto " + obra.numero + ", " + obra.curso);
 
       // La misma obra puede tener ficha en varias secciones a la vez.
-      boton.dataset.obra = obra.numero;
+      boton.dataset.obra = obra.id;
       if (estado.seleccionando && obraElegida(obra)) boton.classList.add("elegida");
 
       boton.addEventListener("click", function () {
         if (estado.seleccionando) alternarSeleccion(obra);
-        else abrirObra(lista, indice);
+        else abrirObra(lista, indice, rehacer);
       });
 
       if (obra.categorias.length > 0) {
@@ -777,13 +808,13 @@
       return boton;
     }
 
-    function crearGrilla(lista) {
+    function crearGrilla(lista, rehacer) {
       const ul = document.createElement("ul");
       ul.className = "obras";
 
       lista.forEach(function (obra, i) {
         const celda = document.createElement("li");
-        celda.appendChild(crearObra(obra, lista, i));
+        celda.appendChild(crearObra(obra, lista, i, rehacer));
         ul.appendChild(celda);
       });
 
@@ -791,7 +822,7 @@
     }
 
     // La primera sección va agrupada por línea curricular.
-    function crearPorLinea(lista) {
+    function crearPorLinea(seccion, lista) {
       const envoltura = document.createDocumentFragment();
 
       LINEAS.forEach(function (linea) {
@@ -806,7 +837,11 @@
         rotulo.textContent = linea + " · " + deLaLinea.length;
         grupo.appendChild(rotulo);
 
-        grupo.appendChild(crearGrilla(deLaLinea));
+        // Las flechas del visor recorren la línea: si algo cambia, la
+        // lista se vuelve a armar con este mismo filtro.
+        grupo.appendChild(crearGrilla(deLaLinea, function () {
+          return obrasDe(seccion).filter(function (o) { return o.linea === linea; });
+        }));
         envoltura.appendChild(grupo);
       });
 
@@ -952,8 +987,10 @@
       orbita.className = "orbita";
       orbita.appendChild(crearNucleo(seccion, indice, lista.length));
 
+      const rehacer = function () { return obrasDe(seccion); };
+
       lista.forEach(function (obra, i) {
-        const ficha = crearObra(obra, lista, i);
+        const ficha = crearObra(obra, lista, i, rehacer);
         ficha.classList.add("orbitando");
         orbita.appendChild(ficha);
       });
@@ -996,7 +1033,7 @@
       if (seccion.clave === null) {
         seccion.nodoTitulo.innerHTML = seccion.titulo +
           ' <span class="cuenta">' + lista.length + "</span>";
-        seccion.nodoCuerpo.appendChild(crearPorLinea(lista));
+        seccion.nodoCuerpo.appendChild(crearPorLinea(seccion, lista));
         return;
       }
 
@@ -1041,19 +1078,23 @@
        (o la combinación que toque) y la sección elegida crece en
        su lugar. Las otras se colapsan y se apagan.
        ========================================================= */
-    const COLUMNAS = ["1fr 0fr", "0fr 1fr", "1fr 0fr", "0fr 1fr"];
-    const FILAS    = ["1fr 0fr", "1fr 0fr", "0fr 1fr", "0fr 1fr"];
-
     function aplicarVista() {
       const ampliada = estado.ampliada;
       const hayAmpliada = ampliada !== null;
 
-      tablero.style.gridTemplateColumns = hayAmpliada ? COLUMNAS[ampliada] : "1fr 1fr";
-      tablero.style.gridTemplateRows = hayAmpliada ? FILAS[ampliada] : "1fr 1fr";
+      // La grilla se elige por clase, no por estilo inline: un estilo
+      // inline le ganaba al media query y en celular nunca se apilaba.
+      SECCIONES.forEach(function (_, i) {
+        tablero.classList.toggle("amp-" + i, hayAmpliada && i === ampliada);
+      });
       tablero.classList.toggle("ampliada", hayAmpliada);
 
       Array.prototype.forEach.call(tablero.children, function (nodo, i) {
-        nodo.classList.toggle("apagada", hayAmpliada && i !== ampliada);
+        const oculta = hayAmpliada && i !== ampliada;
+        nodo.classList.toggle("apagada", oculta);
+        // Sin inert, los botones de una sección colapsada siguen
+        // recibiendo Tab aunque no se vean.
+        nodo.inert = oculta;
       });
 
       botonVolver.hidden = !hayAmpliada;
@@ -1079,17 +1120,64 @@
     /* =========================================================
        9. Obra en primer plano
        ========================================================= */
-    function abrirObra(lista, indice) {
+    // Con el visor abierto el resto de la página queda inerte: el Tab
+    // no se escapa detrás del telón y el foco queda atrapado adentro.
+    const fueraDelVisor = [
+      document.querySelector(".barra"),
+      tablero,
+      document.getElementById("lote")
+    ];
+
+    function aislarVisor(abierto) {
+      fueraDelVisor.forEach(function (nodo) { nodo.inert = abierto; });
+      telon.inert = !abierto;
+    }
+
+    function abrirObra(lista, indice, rehacer) {
       estado.lista = lista;
       estado.obra = indice;
+      estado.rehacerLista = rehacer || null;
+      estado.focoPrevio = document.activeElement;
       pintarVisor();
       telon.classList.add("abierto");
+      aislarVisor(true);
       document.getElementById("cerrar").focus();
     }
 
+    /* Al cerrar, el foco no puede quedar en el aire. Se intenta, en
+       orden: quien lo tenía al abrir; la ficha de la obra que se estaba
+       mirando; la barra. Cada intento se comprueba, porque el elemento
+       pudo haber sido recreado por refrescar(), o quedar dentro de una
+       sección inerte, o —en Safari, donde un botón no toma el foco al
+       hacer clic— no haber sido nunca enfocable. */
+    function devolverFoco(ultima) {
+      const previo = estado.focoPrevio;
+      estado.focoPrevio = null;
+
+      if (previo && previo !== document.body && document.contains(previo)) {
+        previo.focus();
+        if (document.activeElement === previo) return;
+      }
+
+      if (ultima) {
+        const ficha = document.querySelector('[data-obra="' + ultima.id + '"]');
+        if (ficha) {
+          ficha.focus();
+          if (document.activeElement === ficha) return;
+        }
+      }
+
+      document.getElementById("modo-seleccion").focus();
+    }
+
     function cerrarObra() {
+      const ultima = estado.obra !== null ? estado.lista[estado.obra] : null;
+
       estado.obra = null;
+      estado.rehacerLista = null;
       telon.classList.remove("abierto");
+      aislarVisor(false);   // antes de mover el foco: si no, el destino es inerte
+      devolverFoco(ultima);
     }
 
     // Las flechas pasan a la obra siguiente o anterior sin cerrar.
@@ -1098,6 +1186,24 @@
       const total = estado.lista.length;
       estado.obra = (estado.obra + paso + total) % total;
       pintarVisor();
+    }
+
+    /* Al cambiar las categorías, la lista por la que navegan las flechas
+       puede haber cambiado de largo. Se vuelve a armar con el mismo
+       criterio con que se abrió, conservando la obra en pantalla; si esa
+       obra salió de la lista queda la que ocupa su lugar, y si la lista
+       se vació, el visor se cierra. */
+    function recalcularLista() {
+      if (estado.obra === null || !estado.rehacerLista) return;
+
+      const actual = estado.lista[estado.obra];
+      const nueva = estado.rehacerLista();
+
+      if (nueva.length === 0) { cerrarObra(); return; }
+
+      const puesto = nueva.indexOf(actual);
+      estado.lista = nueva;
+      estado.obra = puesto !== -1 ? puesto : Math.min(estado.obra, nueva.length - 1);
     }
 
     // Manda o saca la obra de un nodo. Una obra puede estar en varios
@@ -1109,7 +1215,8 @@
 
       guardarAsignaciones();
       refrescar();
-      pintarDestinos(obra);
+      recalcularLista();
+      if (estado.obra !== null) pintarVisor();
     }
 
     function pintarDestinos(obra) {
@@ -1153,7 +1260,7 @@
     const botonModo = document.getElementById("modo-seleccion");
 
     function obraElegida(obra) {
-      return estado.seleccion.indexOf(obra.numero) !== -1;
+      return estado.seleccion.indexOf(obra.id) !== -1;
     }
 
     function obrasSeleccionadas() {
@@ -1164,13 +1271,13 @@
     // tienen que reflejar lo mismo.
     function marcarFichas(obra) {
       const elegida = obraElegida(obra);
-      document.querySelectorAll('[data-obra="' + obra.numero + '"]')
+      document.querySelectorAll('[data-obra="' + obra.id + '"]')
         .forEach(function (ficha) { ficha.classList.toggle("elegida", elegida); });
     }
 
     function alternarSeleccion(obra) {
-      const puesto = estado.seleccion.indexOf(obra.numero);
-      if (puesto === -1) estado.seleccion.push(obra.numero);
+      const puesto = estado.seleccion.indexOf(obra.id);
+      if (puesto === -1) estado.seleccion.push(obra.id);
       else estado.seleccion.splice(puesto, 1);
 
       marcarFichas(obra);
@@ -1200,6 +1307,8 @@
 
       guardarAsignaciones();
       refrescar();
+      recalcularLista();
+      if (estado.obra !== null) pintarVisor();
       pintarLote();
     }
 

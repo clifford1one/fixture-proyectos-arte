@@ -75,8 +75,12 @@ function urlReproductor(obra) {
    ========================================================= */
 const estado = {
     ampliada: null,       // índice de sección ampliada, o null en vista general
-    lista: [],            // trabajos por los que navegan las flechas del visor
-    obra: null,           // índice dentro de esa lista, o null si está cerrado
+    obra: null,           // trabajo en el visor, o null si está cerrado
+
+    // Arma la lista por la que navegan las flechas del visor. Es una
+    // función y no la lista misma: si la clasificación cambia con el
+    // visor abierto, la lista de un nodo cambia, y guardada quedaba vieja.
+    listaDelVisor: null,
 
     seleccion: [],        // ids de los trabajos elegidos para el lote
 
@@ -174,7 +178,15 @@ function crearContenidoDeFicha(obra) {
     if (obra.tipo === "texto") {
         const extracto = document.createElement("p");
         extracto.className = "extracto";
-        extracto.textContent = obra.contenido;
+
+        // El texto va en su propia caja, que es la que se recorta. Así el
+        // corte cae en el borde interior del párrafo y se puede reservar
+        // la esquina de la casilla; recortando el párrafo, el texto seguía
+        // corriendo por debajo de ella.
+        const texto = document.createElement("span");
+        texto.textContent = obra.contenido;
+        extracto.appendChild(texto);
+
         return [extracto];
     }
 
@@ -205,9 +217,9 @@ function crearCasilla(obra) {
     return casilla;
 }
 
-function crearObra(obra, lista, indice, conCasilla) {
+function crearObra(obra, listaDe, conCasilla) {
     const ficha = document.createElement("div");
-    ficha.className = "obra";
+    ficha.className = "obra" + (conCasilla ? " con-casilla" : "");
 
     // El mismo trabajo puede tener ficha en varias secciones a la vez.
     ficha.dataset.obra = obra.id;
@@ -218,7 +230,7 @@ function crearObra(obra, lista, indice, conCasilla) {
     abrir.type = "button";
     abrir.className = "obra-abrir";
     abrir.setAttribute("aria-label", obra.archivo + ", " + obra.curso);
-    abrir.addEventListener("click", function () { abrirObra(lista, indice); });
+    abrir.addEventListener("click", function () { abrirObra(obra, listaDe); });
 
     crearContenidoDeFicha(obra).forEach(function (parte) { abrir.appendChild(parte); });
     ficha.appendChild(abrir);
@@ -239,9 +251,12 @@ function crearGrilla(lista) {
     const ul = document.createElement("ul");
     ul.className = "obras";
 
-    lista.forEach(function (obra, i) {
+    // Una línea no cambia al clasificar: su lista puede ir fija.
+    const listaDe = function () { return lista; };
+
+    lista.forEach(function (obra) {
         const celda = document.createElement("li");
-        celda.appendChild(crearObra(obra, lista, i, true));
+        celda.appendChild(crearObra(obra, listaDe, true));
         ul.appendChild(celda);
     });
 
@@ -457,8 +472,11 @@ function crearOrbita(seccion, indice, lista) {
     orbita.className = "orbita";
     orbita.appendChild(crearNucleo(seccion, indice, lista.length));
 
-    lista.forEach(function (obra, i) {
-        const ficha = crearObra(obra, lista, i, false);
+    // Un nodo sí cambia al clasificar: su lista se vuelve a pedir cada vez.
+    const listaDe = function () { return obrasDe(seccion); };
+
+    lista.forEach(function (obra) {
+        const ficha = crearObra(obra, listaDe, false);
         ficha.classList.add("orbitando");
         orbita.appendChild(ficha);
     });
@@ -576,9 +594,9 @@ function moverSeccion(paso) {
 /* =========================================================
    8. Trabajo en primer plano
    ========================================================= */
-function abrirObra(lista, indice) {
-    estado.lista = lista;
-    estado.obra = indice;
+function abrirObra(obra, listaDe) {
+    estado.obra = obra;
+    estado.listaDelVisor = listaDe;
     pintarVisor();
     telon.classList.add("abierto");
     document.getElementById("cerrar").focus();
@@ -586,17 +604,39 @@ function abrirObra(lista, indice) {
 
 function cerrarObra() {
     estado.obra = null;
+    estado.listaDelVisor = null;
     telon.classList.remove("abierto");
     // Se vacía para que un video no siga sonando detrás del telón.
     document.getElementById("visor-hueco").innerHTML = "";
 }
 
-// Las flechas pasan al trabajo siguiente o anterior sin cerrar.
+// Las flechas pasan al trabajo siguiente o anterior sin cerrar. La lista
+// se pide de nuevo en cada paso, así recorren el nodo como está ahora y
+// no como estaba al abrir el visor.
 function moverObra(paso) {
     if (estado.obra === null) return;
-    const total = estado.lista.length;
-    estado.obra = (estado.obra + paso + total) % total;
+
+    const lista = estado.listaDelVisor();
+    const total = lista.length;
+    if (total === 0) return;
+
+    // Si el trabajo en pantalla salió del nodo, se parte del lugar que
+    // ocupaba: hacia adelante toca el que quedó en ese lugar, y hacia
+    // atrás el de antes.
+    const puesto = lista.indexOf(estado.obra);
+    const desde = puesto !== -1
+        ? puesto + paso
+        : lugarEn(lista, estado.obra) + (paso > 0 ? 0 : -1);
+
+    estado.obra = lista[(desde + total) % total];
     pintarVisor();
+}
+
+// Dónde iría el trabajo si estuviera en la lista. Las listas respetan el
+// orden de OBRAS, así que es cuántos de ella van antes que él.
+function lugarEn(lista, obra) {
+    const orden = OBRAS.indexOf(obra);
+    return lista.filter(function (otra) { return OBRAS.indexOf(otra) < orden; }).length;
 }
 
 function crearVistaGrande(obra) {
@@ -619,7 +659,7 @@ function crearVistaGrande(obra) {
 }
 
 function pintarVisor() {
-    const obra = estado.lista[estado.obra];
+    const obra = estado.obra;
     const hueco = document.getElementById("visor-hueco");
 
     hueco.innerHTML = "";
@@ -627,10 +667,20 @@ function pintarVisor() {
 
     document.getElementById("visor-curso").textContent = obra.curso;
     document.getElementById("visor-linea").textContent = obra.linea;
-    document.getElementById("visor-indice").textContent =
-        (estado.obra + 1) + " / " + estado.lista.length;
 
+    pintarIndice();
     pintarDestinos(obra);
+}
+
+// Aparte de pintarVisor(): al clasificar hay que poner al día la cuenta
+// sin volver a cargar la imagen o el video que se está mirando.
+function pintarIndice() {
+    const lista = estado.listaDelVisor();
+    const puesto = lista.indexOf(estado.obra);
+
+    document.getElementById("visor-indice").textContent = puesto !== -1
+        ? (puesto + 1) + " / " + lista.length
+        : "Ya no está en este nodo";
 }
 
 // Manda o saca el trabajo de un nodo. Puede estar en varios a la vez,
@@ -643,6 +693,10 @@ function alternarCategoria(obra, clave) {
     programarGuardado();
     refrescar();
     pintarDestinos(obra);
+
+    // El trabajo sigue en pantalla aunque haya salido del nodo, para
+    // poder deshacer el clic; lo que cambia es la cuenta.
+    pintarIndice();
 }
 
 function pintarDestinos(obra) {
@@ -752,6 +806,12 @@ function confirmarSeleccion() {
 
     programarGuardado();
     limpiarSeleccion();
+
+    // Con el teclado se llega a la barra del lote aun con el visor abierto.
+    if (estado.obra !== null) {
+        pintarIndice();
+        pintarDestinos(estado.obra);
+    }
 }
 
 function pintarLote() {

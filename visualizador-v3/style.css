@@ -490,6 +490,10 @@
     left: 50%;
     bottom: 1.25rem;
     transform: translateX(-50%);
+    /* Sin esto el ancho se calcula con la mitad de pantalla que queda a la
+       derecha de left: 50%, y la barra se partía en dos líneas aunque
+       sobrara espacio. El max-width de abajo sigue poniendo el tope. */
+    width: max-content;
     z-index: 40;
     display: flex;
     flex-wrap: wrap;
@@ -504,7 +508,8 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
   }
 
-  .lote .boton.fuerte:disabled {
+  /* Enviar apagado, en la barra del lote y en el visor. */
+  .boton.fuerte:disabled {
     color: var(--tinta-suave);
     background: transparent;
     border-color: var(--borde-tenue);
@@ -524,6 +529,77 @@
     flex-wrap: wrap;
     justify-content: center;
     gap: 0.4rem;
+  }
+
+  /* =========================================================
+     6b. Ocultos y menú del clic derecho
+     ========================================================= */
+  /* Un oculto solo aparece con "Ver ocultos", y se nota que está fuera. */
+  .obra.oculta { border-style: dashed; }
+  .obra.oculta .obra-abrir { opacity: 0.4; }
+
+  /* Entre la barra del lote y el visor: tapa la barra si se cruzan,
+     y nunca queda encima de un trabajo abierto. */
+  .menu {
+    position: fixed;
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    min-width: 13rem;
+    max-width: calc(100% - 1rem);
+    padding: 0.35rem;
+    background: var(--papel);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
+  }
+
+  .menu-titulo {
+    margin: 0.3rem 0.6rem 0.1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .menu-rotulo {
+    margin: 0.5rem 0.6rem 0.2rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--tinta-suave);
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    text-align: left;
+    font-size: 0.8125rem;
+    border-radius: 2px;
+  }
+
+  .menu-item:hover,
+  .menu-item:focus-visible { background: #ebebeb; }
+
+  .menu-item:focus-visible { outline-offset: -2px; }
+
+  /* La columna del ✓ se reserva siempre, así los nombres no bailan. */
+  .menu-item::before {
+    content: "";
+    flex: 0 0 0.9rem;
+  }
+
+  .menu-item[aria-checked="true"]::before { content: "✓"; }
+
+  .menu-separador {
+    height: 1px;
+    margin: 0.35rem 0;
+    background: var(--borde-tenue);
   }
 
   /* =========================================================
@@ -645,6 +721,18 @@
     margin-right: 0.25rem;
   }
 
+  /* El margen empuja el aviso y el botón de enviar hacia la derecha,
+     aunque el aviso esté vacío. */
+  .enviar-estado {
+    margin-left: auto;
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tinta-suave);
+  }
+
+  .enviar-estado.falla { color: var(--tinta); font-weight: 600; }
+
   .destino {
     font-size: 0.8125rem;
     padding: 0.45rem 0.8rem;
@@ -663,9 +751,6 @@
   }
 
   .destino[aria-pressed="true"]::before { content: "✓ "; }
-
-  /* Parte del lote ya está en ese nodo, parte no. */
-  .destino.parcial::before { content: "– "; }
 
   .destino:disabled {
     color: var(--tinta-suave);

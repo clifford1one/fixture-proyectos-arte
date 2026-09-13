@@ -1,852 +1,24 @@
-<!DOCTYPE html>
-<html lang="es">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Archivo de prácticas — Visualizador</title>
-
-  <base target="_top">
-
-  <style>
-  /* =========================================================
-     1. Base
-     Escala de grises sobre #f5f5f5, igual que el formulario.
-     ========================================================= */
-  :root {
-    --fondo: #f5f5f5;
-    --papel: #fdfdfd;
-    --hueco: #e4e4e4;
-    --tinta: #1a1a1a;
-    --tinta-media: #555555;
-    --tinta-suave: #8a8a8a;
-    --borde: #1a1a1a;
-    --borde-tenue: #c9c9c9;
-    --radio: 3px;
-
-    --paso: 0.45s;
-    --curva: cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  * { box-sizing: border-box; }
-
-  html, body { height: 100%; }
-
-  body {
-    margin: 0;
-    /* El tablero ocupa la pantalla: no hay scroll de página, cada
-       sección se desplaza por dentro. */
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    background: var(--fondo);
-    color: var(--tinta);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    font-size: 16px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-  }
-
-  button {
-    font-family: inherit;
-    color: inherit;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-  }
-
-  :focus-visible {
-    outline: 2px solid var(--tinta);
-    outline-offset: 2px;
-  }
-
-  [hidden] { display: none !important; }
-
-  /* =========================================================
-     2. Barra superior
-     ========================================================= */
-  .barra {
-    flex: 0 0 auto;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.75rem 1.5rem;
-    padding: 1.25rem 1.75rem;
-    border-bottom: 1px solid var(--borde);
-  }
-
-  .barra h1 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-  }
-
-  .estudiante {
-    font-size: 0.875rem;
-    color: var(--tinta-media);
-  }
-
-  .acciones {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-  }
-
-  /* Aviso discreto de que la clasificación se está guardando. */
-  .guardado {
-    font-size: 0.6875rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--tinta-suave);
-    min-width: 5.5rem;
-    text-align: right;
-  }
-
-  .guardado.falla { color: var(--tinta); font-weight: 600; }
-
-  .boton {
-    font-size: 0.75rem;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    padding: 0.5rem 0.875rem;
-    border: 1px solid var(--borde-tenue);
-    border-radius: var(--radio);
-    text-decoration: none;
-    color: var(--tinta);
-    white-space: nowrap;
-  }
-
-  .boton:hover { background: #ebebeb; border-color: var(--borde); }
-
-  /* Volver a la vista general: una flecha, arriba a la izquierda. */
-  .volver {
-    flex: 0 0 auto;
-    width: 2rem;
-    height: 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    line-height: 1;
-    color: var(--tinta);
-    border: 1px solid var(--borde);
-    border-radius: var(--radio);
-    align-self: center;
-  }
-
-  .volver:hover { background: var(--tinta); color: var(--papel); }
-
-  .boton.fuerte {
-    background: var(--tinta);
-    border-color: var(--tinta);
-    color: var(--papel);
-  }
-
-  .boton.fuerte:hover { background: #000; }
-
-  /* =========================================================
-     3. Tablero 2×2
-     La transición entre vistas es la grilla misma: la sección
-     elegida pasa a 1fr y las otras a 0fr, así que crece en su
-     lugar en vez de aparecer como una pantalla nueva.
-     ========================================================= */
-  .tablero {
-    flex: 1 1 auto;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 1px;
-    background: var(--borde-tenue);
-    min-height: 0;
-    transition:
-      grid-template-columns var(--paso) var(--curva),
-      grid-template-rows var(--paso) var(--curva);
-  }
-
-  .seccion {
-    display: flex;
-    flex-direction: column;
-    background: var(--fondo);
-    /* Sin esto las secciones no se dejan encoger a 0fr. */
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-    transition: opacity var(--paso) var(--curva);
-  }
-
-  /* Las que no son la elegida se apagan mientras se colapsan. */
-  .seccion.apagada {
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .seccion-cabecera {
-    flex: 0 0 auto;
-    padding: 1.25rem 1.5rem 0.875rem;
-  }
-
-  .titulo-seccion {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 0;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    letter-spacing: -0.005em;
-  }
-
-  .titulo-seccion:hover { text-decoration: underline; text-underline-offset: 3px; }
-
-  .cuenta {
-    font-size: 0.75rem;
-    font-weight: 400;
-    color: var(--tinta-suave);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .seccion-cuerpo {
-    flex: 1 1 auto;
-    overflow-y: auto;
-    padding: 0 1.5rem 1.5rem;
-  }
-
-  .tablero.ampliada .seccion:not(.apagada) .seccion-cabecera { padding: 2rem 2.5rem 1.25rem; }
-  .tablero.ampliada .seccion:not(.apagada) .seccion-cuerpo { padding: 0 2.5rem 2.5rem; }
-  .tablero.ampliada .seccion:not(.apagada) .titulo-seccion { font-size: 1.5rem; }
-
-  /* =========================================================
-     4. Órbita
-     Los nodos no van en grilla: el título queda al centro y los
-     trabajos giran alrededor. El tamaño de cada uno lo decide el
-     script según cuántos haya, así que pocos se ven grandes y
-     muchos se reparten en más anillos sin desbordarse.
-     ========================================================= */
-  .cuerpo-orbita {
-    position: relative;
-    overflow: hidden;
-    padding: 0;
-  }
-
-  .orbita { position: absolute; inset: 0; }
-
-  .nucleo {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    max-width: 66%;
-    text-align: center;
-    /* El fondo despeja el centro por si un anillo queda muy cerca. */
-    background: var(--fondo);
-    border-radius: 50%;
-    padding: 0.75rem 1rem;
-  }
-
-  .titulo-nodo {
-    padding: 0;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    letter-spacing: -0.005em;
-    line-height: 1.25;
-  }
-
-  .titulo-nodo:hover { text-decoration: underline; text-underline-offset: 3px; }
-
-  .tablero.ampliada .seccion:not(.apagada) .titulo-nodo { font-size: 1.5rem; }
-
-  /* La definición la escribe la carrera. En vista general no cabe:
-     aparece solo cuando la sección está ampliada. */
-  .definicion {
-    display: none;
-    margin: 0;
-    max-width: 30rem;
-    font-size: 0.9375rem;
-    line-height: 1.5;
-    color: var(--tinta-media);
-  }
-
-  .tablero.ampliada .seccion:not(.apagada) .definicion { display: block; }
-
-  .resto {
-    margin: 0;
-    font-size: 0.6875rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--tinta-suave);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .vacio-nodo {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--tinta-suave);
-    max-width: 22rem;
-  }
-
-  /* =========================================================
-     5. Trabajos
-     ========================================================= */
-  .grupo-linea { margin-bottom: 1.5rem; }
-
-  .rotulo-linea {
-    margin: 0 0 0.5rem;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--tinta-suave);
-  }
-
-  .obras {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
-    gap: 0.625rem;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  .tablero.ampliada .seccion:not(.apagada) .obras {
-    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
-    gap: 1rem;
-  }
-
-  /* La ficha es el contenedor; adentro van el botón que la abre y,
-     en la grilla, la casilla para seleccionarla. Antes la ficha era el
-     botón, y no se puede anidar un control dentro de otro. */
-  .obra {
-    position: relative;
-    display: block;
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    padding: 0;
-    overflow: hidden;
-    background: var(--hueco);
-    border: 1px solid var(--borde);
-    border-radius: var(--radio);
-    font-size: 0.75rem;
-    font-variant-numeric: tabular-nums;
-    color: var(--tinta-media);
-    transition: transform 0.15s var(--curva), box-shadow 0.15s var(--curva);
-  }
-
-  /* Al pasar el mouse crece y se dibuja por encima de los demás. */
-  .obra:hover,
-  .obra:focus-visible {
-    transform: scale(1.08);
-    z-index: 5;
-    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.18);
-  }
-
-  /* En órbita la posición la pone el script, así que el crecer al
-     pasar el mouse tiene que conservar el centrado. */
-  .obra.orbitando { position: absolute; transform: translate(-50%, -50%); }
-
-  .obra.orbitando:hover,
-  .obra.orbitando:focus-visible { transform: translate(-50%, -50%) scale(1.14); }
-
-  /* Cubre la ficha entera y es lo que la abre. La miniatura va adentro;
-     si no carga, queda el rectángulo gris y la ficha sigue sirviendo. */
-  .obra-abrir {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-    border-radius: inherit;
-    background: transparent;
-  }
-
-  /* Casilla de selección, abajo a la derecha. Solo en la grilla: en las
-     órbitas la ficha puede bajar a 22px y no habría dónde apuntar. */
-  .elegir {
-    position: absolute;
-    right: 0.3rem;
-    bottom: 0.3rem;
-    z-index: 2;
-    width: 1.125rem;
-    height: 1.125rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    font-size: 0.75rem;
-    line-height: 1;
-    color: transparent;
-    background: var(--papel);
-    border: 1px solid var(--borde);
-    border-radius: 2px;
-  }
-
-  .elegir:hover { background: #ebebeb; }
-
-  .elegir[aria-checked="true"] {
-    color: var(--papel);
-    background: var(--tinta);
-  }
-
-  .obra img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  /* Un texto no tiene imagen: se muestra el texto mismo. */
-  .obra .extracto {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    padding: 0.5rem 0.6rem;
-    margin: 0;
-    background: var(--papel);
-    font-size: 0.6875rem;
-    line-height: 1.35;
-    text-align: left;
-    color: var(--tinta);
-    overflow: hidden;
-  }
-
-  /* Se recorta la caja del texto y no el párrafo: el recorte de un
-     elemento cae en el borde de su relleno, y el relleno de abajo es
-     justo lo que se reserva para la casilla. Con el tope al 100%, además,
-     el centrado ya no desborda por arriba y un texto largo no pierde su
-     primera línea. */
-  .obra .extracto span {
-    max-height: 100%;
-    overflow: hidden;
-  }
-
-  /* En la grilla la casilla ocupa la esquina de abajo: el texto termina
-     antes de llegar a ella. */
-  .obra.con-casilla .extracto { padding-bottom: 1.7rem; }
-
-  .obra.diminuta .extracto { display: none; }
-
-  /* Marca de reproducción para los videos. */
-  .obra .marca-video {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 34%;
-    aspect-ratio: 1;
-    border: 1px solid var(--papel);
-    border-radius: 50%;
-    background: rgba(26, 26, 26, 0.45);
-  }
-
-  .obra .marca-video::after {
-    content: "";
-    position: absolute;
-    left: 54%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    border-style: solid;
-    border-width: 0.28em 0 0.28em 0.45em;
-    border-color: transparent transparent transparent var(--papel);
-    font-size: 1em;
-  }
-
-  /* Un punto por cada nodo al que fue enviado el trabajo. */
-  .obra .marcas {
-    position: absolute;
-    left: 0.3rem;
-    bottom: 0.3rem;
-    display: flex;
-    gap: 0.2rem;
-  }
-
-  .obra .marcas i {
-    width: 0.3rem;
-    height: 0.3rem;
-    border-radius: 50%;
-    background: var(--papel);
-    box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.55);
-  }
-
-  /* Con fichas muy chicas los puntos estorban más de lo que informan. */
-  .obra.diminuta .marcas { display: none; }
-
-  /* =========================================================
-     6. Selección múltiple
-     ========================================================= */
-  /* Seleccionada: se nota en el borde, no solo en la casilla. */
-  .obra.elegida {
-    border-color: var(--tinta);
-    box-shadow: inset 0 0 0 3px var(--tinta);
-  }
-
-  .obra.elegida img,
-  .obra.elegida .extracto { opacity: 0.45; }
-
-
-  .lote {
-    position: fixed;
-    left: 50%;
-    bottom: 1.25rem;
-    transform: translateX(-50%);
-    z-index: 40;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    max-width: calc(100% - 2rem);
-    padding: 0.75rem 1rem;
-    background: var(--papel);
-    border: 1px solid var(--borde);
-    border-radius: var(--radio);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
-  }
-
-  .lote .boton.fuerte:disabled {
-    color: var(--tinta-suave);
-    background: transparent;
-    border-color: var(--borde-tenue);
-    cursor: not-allowed;
-  }
-
-  .lote-cuenta {
-    font-size: 0.75rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    margin-right: 0.25rem;
-  }
-
-  .lote-destinos {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.4rem;
-  }
-
-  /* =========================================================
-     7. Trabajo en primer plano
-     ========================================================= */
-  .telon {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    /* En columna: el visor y la pista son hermanos, así que la pista
-       ya no puede montarse sobre los botones de enviar. Las flechas y
-       el cerrar van fijos y quedan fuera de este flujo. */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    /* El aire de arriba lo pide el botón de cerrar, y el de los lados
-       las flechas: así el visor nunca queda debajo de un control. */
-    padding: 4.5rem 5rem 1.5rem;
-    background: rgba(245, 245, 245, 0.94);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s var(--curva);
-  }
-
-  .telon.abierto { opacity: 1; pointer-events: auto; }
-
-  .visor {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    width: min(52rem, 100%);
-    /* Se encoge si hace falta, pero nunca empuja a la pista fuera. */
-    flex: 0 1 auto;
-    min-height: 0;
-    transform: scale(0.97);
-    transition: transform 0.25s var(--curva);
-  }
-
-  .telon.abierto .visor { transform: scale(1); }
-
-  .visor-hueco {
-    position: relative;
-    flex: 1 1 auto;
-    min-height: 0;
-    aspect-ratio: 4 / 3;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    background: var(--hueco);
-    border: 1px solid var(--borde);
-    border-radius: var(--radio);
-    color: var(--tinta-media);
-  }
-
-  .visor-hueco img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    background: var(--hueco);
-  }
-
-  /* El video se reproduce con el reproductor de Drive: no hay URL
-     directa que un <video> pueda usar. */
-  .visor-hueco iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-  }
-
-  .visor-hueco blockquote {
-    margin: 0;
-    padding: 2rem;
-    max-width: 34rem;
-    background: var(--papel);
-    font-size: 1.125rem;
-    line-height: 1.5;
-    color: var(--tinta);
-    overflow-y: auto;
-  }
-
-  .visor-datos {
-    flex: 0 0 auto;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.5rem 1.25rem;
-    font-size: 0.875rem;
-  }
-
-  .visor-datos .curso { font-weight: 600; }
-  .visor-datos .linea { color: var(--tinta-media); }
-
-  .visor-datos .indice {
-    margin-left: auto;
-    font-size: 0.75rem;
-    color: var(--tinta-suave);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .enviar {
-    flex: 0 0 auto;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    padding-top: 0.875rem;
-    border-top: 1px solid var(--borde-tenue);
-  }
-
-  .enviar-rotulo {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--tinta-suave);
-    margin-right: 0.25rem;
-  }
-
-  .destino {
-    font-size: 0.8125rem;
-    padding: 0.45rem 0.8rem;
-    border: 1px solid var(--borde-tenue);
-    border-radius: var(--radio);
-    background: var(--papel);
-  }
-
-  .destino:hover { border-color: var(--borde); }
-
-  /* Seleccionado en negativo: el estado se ve sin usar color. */
-  .destino[aria-pressed="true"] {
-    background: var(--tinta);
-    border-color: var(--tinta);
-    color: var(--papel);
-  }
-
-  .destino[aria-pressed="true"]::before { content: "✓ "; }
-
-  /* Parte del lote ya está en ese nodo, parte no. */
-  .destino.parcial::before { content: "– "; }
-
-  .destino:disabled {
-    color: var(--tinta-suave);
-    border-color: var(--borde-tenue);
-    cursor: not-allowed;
-  }
-
-  .flecha {
-    position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 2.75rem;
-    height: 2.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.125rem;
-    background: var(--papel);
-    border: 1px solid var(--borde);
-    border-radius: var(--radio);
-  }
-
-  .flecha:hover { background: var(--tinta); color: var(--papel); }
-  .flecha.previa { left: 1.25rem; }
-  .flecha.siguiente { right: 1.25rem; }
-
-  .cerrar { position: fixed; top: 1.25rem; right: 1.25rem; }
-
-  .pista {
-    flex: 0 0 auto;
-    margin: 0;
-    font-size: 0.6875rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--tinta-suave);
-    pointer-events: none;
-  }
-
-  /* =========================================================
-     8. Pantalla de aviso
-     ========================================================= */
-  .pantalla-aviso {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    padding: 3rem 1.5rem;
-    text-align: center;
-  }
-
-  .aviso-titulo {
-    margin: 0;
-    font-size: 1.125rem;
-    font-weight: 600;
-  }
-
-  .aviso-texto {
-    margin: 0;
-    max-width: 32rem;
-    font-size: 0.9375rem;
-    color: var(--tinta-media);
-  }
-
-  /* =========================================================
-     9. Pantallas chicas y movimiento reducido
-     ========================================================= */
-  @media (max-width: 700px) {
-    /* En celular la grilla 2×2 no cabe: las secciones se apilan
-       y la vista general vuelve a tener scroll. */
-    body { overflow: auto; }
-    .tablero { grid-template-columns: 1fr; grid-template-rows: none; }
-    .seccion { min-height: 70vh; }
-    .barra { padding: 1rem 1.125rem; }
-    .acciones { margin-left: 0; flex-wrap: wrap; }
-    .flecha.previa { left: 0.5rem; }
-    .flecha.siguiente { right: 0.5rem; }
-    .pista { display: none; }
-    .telon { padding: 4rem 3.5rem 1rem; }
-  }
-
-  @media (hover: none) and (pointer: coarse) {
-    /* En táctil no hay hover: el gris de rollover solo confunde. */
-    .boton:hover { background: transparent; }
-    .boton.fuerte:hover { background: var(--tinta); }
-    .obra:hover { transform: none; box-shadow: none; }
-    .obra.orbitando:hover { transform: translate(-50%, -50%); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    * { transition-duration: 0.01ms !important; }
-  }
-  </style>
-</head>
-
-<body>
-
-  <header class="barra">
-    <button type="button" class="volver" id="volver" hidden
-      title="Volver a la vista general" aria-label="Volver a la vista general">←</button>
-
-    <h1>Archivo de prácticas</h1>
-    <span class="estudiante" id="estudiante"></span>
-
-    <div class="acciones">
-      <span class="guardado" id="guardado" aria-live="polite"></span>
-      <a class="boton fuerte" id="drive" href="#" target="_blank" rel="noopener">Mi carpeta en Drive ↗</a>
-    </div>
-  </header>
-
-  <main class="tablero" id="tablero"></main>
-
-  <!-- Cuando no se pudo identificar la cuenta o no hay nada subido -->
-  <div class="pantalla-aviso" id="pantalla-aviso" hidden>
-    <p class="aviso-titulo" id="aviso-titulo"></p>
-    <p class="aviso-texto" id="aviso-texto"></p>
-  </div>
-
-  <!-- Acciones del lote, visibles solo en modo selección -->
-  <div class="lote" id="lote" hidden>
-    <span class="lote-cuenta" id="lote-cuenta"></span>
-    <div class="lote-destinos" id="lote-destinos"></div>
-    <button type="button" class="boton" id="lote-limpiar">Cancelar</button>
-    <button type="button" class="boton fuerte" id="lote-confirmar">Confirmar</button>
-  </div>
-
-  <!-- Trabajo en primer plano -->
-  <div class="telon" id="telon" role="dialog" aria-modal="true" aria-label="Trabajo">
-    <button type="button" class="flecha previa" id="previa" aria-label="Trabajo anterior">←</button>
-
-    <div class="visor">
-      <div class="visor-hueco" id="visor-hueco"></div>
-
-      <div class="visor-datos">
-        <span class="curso" id="visor-curso"></span>
-        <span class="linea" id="visor-linea"></span>
-        <span class="indice" id="visor-indice"></span>
-      </div>
-
-      <div class="enviar" id="enviar">
-        <span class="enviar-rotulo">Enviar a</span>
-      </div>
-    </div>
-
-    <button type="button" class="flecha siguiente" id="siguiente" aria-label="Trabajo siguiente">→</button>
-    <button type="button" class="boton cerrar" id="cerrar">Cerrar ✕</button>
-    <p class="pista">← → para moverse · Esc para cerrar</p>
-  </div>
-
-  <script>const DATOS = <?!= datosJson ?>;</script>
-
-  <script>
 /* =========================================================
    1. Datos
-   En Apps Script los inyecta doGet() como la constante DATOS.
-   Abriendo el archivo suelto esa constante no existe, y se usa
-   el juego de ejemplo de datos-ejemplo.js: así la página se
-   puede revisar sin desplegarla.
+   Los inyecta doGet() como la constante DATOS. Abriendo el
+   archivo suelto esa constante no existe: la página lo dice en
+   vez de quedar en blanco.
    ========================================================= */
-const ARCHIVO = (typeof DATOS !== "undefined") ? DATOS : DATOS_EJEMPLO;
+const ARCHIVO = (typeof DATOS !== "undefined") ? DATOS : {
+    error: "Esta página se abre desde Apps Script, no como archivo suelto."
+};
 
 const CATEGORIAS = ARCHIVO.categorias || [];
 const LINEAS = ARCHIVO.lineas || [];
 const OBRAS = ARCHIVO.obras || [];
 
-// La clasificación guardada se cuelga de cada trabajo para no
-// andar consultando dos estructuras en paralelo.
+// Lo guardado se cuelga de cada trabajo —en qué nodos está y si está
+// oculto— para no andar consultando varias estructuras en paralelo.
+const OCULTOS_GUARDADOS = ARCHIVO.ocultos || [];
+
 OBRAS.forEach(function (obra) {
     obra.categorias = (ARCHIVO.clasificacion && ARCHIVO.clasificacion[obra.id]) || [];
+    obra.oculta = OCULTOS_GUARDADOS.indexOf(obra.id) !== -1;
 });
 
 /* Las cuatro secciones, en el orden de la grilla 2×2. La primera
@@ -908,6 +80,7 @@ function urlReproductor(obra) {
 const estado = {
     ampliada: null,       // índice de sección ampliada, o null en vista general
     obra: null,           // trabajo en el visor, o null si está cerrado
+    pendientes: [],       // nodos marcados en el visor; se aplican al apretar Enviar
 
     // Arma la lista por la que navegan las flechas del visor. Es una
     // función y no la lista misma: si la clasificación cambia con el
@@ -915,11 +88,9 @@ const estado = {
     listaDelVisor: null,
 
     seleccion: [],        // ids de los trabajos elegidos para el lote
+    destinos: [],         // nodos a los que se manda el lote al confirmar, no antes
 
-    // Lo que se va a aplicar al confirmar, no antes. Por cada nodo:
-    // "todos", "ninguno", o "mixto" para dejar cada trabajo como está.
-    destinos: {},
-    tocados: []           // nodos que el estudiante decidió a mano
+    verOcultos: false     // si los trabajos ocultos se muestran, atenuados
 };
 
 const tablero = document.getElementById("tablero");
@@ -927,11 +98,16 @@ const telon = document.getElementById("telon");
 const botonVolver = document.getElementById("volver");
 const avisoGuardado = document.getElementById("guardado");
 
-// Trabajos que le tocan a una sección.
+// Con el visor abierto la barra de arriba queda tapada: el aviso de
+// guardado se repite junto al botón de enviar.
+const avisoDelVisor = document.getElementById("visor-guardado");
+
+// Trabajos que le tocan a una sección. Los ocultos no están en ninguna,
+// salvo que se haya pedido verlos.
 function obrasDe(seccion) {
-    if (!seccion.clave) return OBRAS;
     return OBRAS.filter(function (obra) {
-        return obra.categorias.indexOf(seccion.clave) !== -1;
+        if (obra.oculta && !estado.verOcultos) return false;
+        return !seccion.clave || obra.categorias.indexOf(seccion.clave) !== -1;
     });
 }
 
@@ -950,9 +126,22 @@ function mapaDeClasificacion() {
     return mapa;
 }
 
+function idsOcultos() {
+    return OBRAS
+        .filter(function (obra) { return obra.oculta; })
+        .map(function (obra) { return obra.id; });
+}
+
 function mostrarGuardado(texto, falla) {
-    avisoGuardado.textContent = texto;
-    avisoGuardado.classList.toggle("falla", falla === true);
+    [avisoGuardado, avisoDelVisor].forEach(function (aviso) {
+        aviso.textContent = texto;
+        aviso.classList.toggle("falla", falla === true);
+    });
+}
+
+function limpiarAvisoDelVisor() {
+    avisoDelVisor.textContent = "";
+    avisoDelVisor.classList.remove("falla");
 }
 
 function programarGuardado() {
@@ -975,7 +164,7 @@ function guardarAhora() {
         .withFailureHandler(function () {
             mostrarGuardado("No se pudo guardar", true);
         })
-        .guardarClasificacion(mapaDeClasificacion());
+        .guardarClasificacion(mapaDeClasificacion(), idsOcultos());
 }
 
 /* =========================================================
@@ -1056,6 +245,10 @@ function crearObra(obra, listaDe, conCasilla) {
     // El mismo trabajo puede tener ficha en varias secciones a la vez.
     ficha.dataset.obra = obra.id;
     if (obraElegida(obra)) ficha.classList.add("elegida");
+    if (obra.oculta) ficha.classList.add("oculta");
+
+    // El clic derecho abre el menú propio en vez del del navegador.
+    ficha.addEventListener("contextmenu", function (evento) { abrirMenu(evento, obra); });
 
     // El botón cubre la ficha entera; la casilla va encima, en una esquina.
     const abrir = document.createElement("button");
@@ -1278,10 +471,13 @@ function crearNucleo(seccion, indice, cantidad) {
     titulo.addEventListener("click", function () { ampliar(indice); });
     nucleo.appendChild(titulo);
 
-    const definicion = document.createElement("p");
-    definicion.className = "definicion";
-    definicion.textContent = seccion.definicion;
-    nucleo.appendChild(definicion);
+    // Sin definición escrita por la carrera, el nodo va solo con su título.
+    if (seccion.definicion) {
+        const definicion = document.createElement("p");
+        definicion.className = "definicion";
+        definicion.textContent = seccion.definicion;
+        nucleo.appendChild(definicion);
+    }
 
     if (cantidad === 0) {
         const vacio = document.createElement("p");
@@ -1346,12 +542,17 @@ function crearSeccion(seccion, indice) {
 
 function refrescarSeccion(seccion, indice) {
     const lista = obrasDe(seccion);
+
+    // La sección se vacía y se vuelve a llenar. Sin guardar dónde iba, cada
+    // clasificación devolvía la grilla al principio.
+    const desplazado = seccion.nodoCuerpo.scrollTop;
     seccion.nodoCuerpo.innerHTML = "";
 
     if (seccion.clave === null) {
         seccion.nodoTitulo.innerHTML = seccion.titulo +
             ' <span class="cuenta">' + lista.length + "</span>";
         seccion.nodoCuerpo.appendChild(crearPorLinea(lista));
+        seccion.nodoCuerpo.scrollTop = desplazado;
         return;
     }
 
@@ -1437,6 +638,7 @@ function abrirObra(obra, listaDe) {
 function cerrarObra() {
     estado.obra = null;
     estado.listaDelVisor = null;
+    estado.pendientes = [];   // lo marcado y no enviado se descarta
     telon.classList.remove("abierto");
     // Se vacía para que un video no siga sonando detrás del telón.
     document.getElementById("visor-hueco").innerHTML = "";
@@ -1500,6 +702,11 @@ function pintarVisor() {
     document.getElementById("visor-curso").textContent = obra.curso;
     document.getElementById("visor-linea").textContent = obra.linea;
 
+    // Cada trabajo parte de cómo está guardado: lo marcado y no enviado en
+    // el anterior se descarta al pasar a otro.
+    estado.pendientes = obra.categorias.slice();
+    limpiarAvisoDelVisor();
+
     pintarIndice();
     pintarDestinos(obra);
 }
@@ -1515,8 +722,9 @@ function pintarIndice() {
         : "Ya no está en este nodo";
 }
 
-// Manda o saca el trabajo de un nodo. Puede estar en varios a la vez,
-// y sigue estando en "Todos mis trabajos".
+// Manda o saca el trabajo de un nodo, al instante. Puede estar en varios
+// a la vez, y sigue estando en "Todos mis trabajos". La usa el menú del
+// clic derecho; el visor marca primero y aplica con "Enviar".
 function alternarCategoria(obra, clave) {
     const puesto = obra.categorias.indexOf(clave);
     if (puesto === -1) obra.categorias.push(clave);
@@ -1524,29 +732,86 @@ function alternarCategoria(obra, clave) {
 
     programarGuardado();
     refrescar();
-    pintarDestinos(obra);
+}
 
-    // El trabajo sigue en pantalla aunque haya salido del nodo, para
-    // poder deshacer el clic; lo que cambia es la cuenta.
+// En el visor, un clic en un nodo solo lo marca o lo desmarca.
+function alternarPendiente(clave) {
+    const puesto = estado.pendientes.indexOf(clave);
+    if (puesto === -1) estado.pendientes.push(clave);
+    else estado.pendientes.splice(puesto, 1);
+
+    // Un "Guardado" que quedara a la vista haría creer que lo recién
+    // marcado ya se guardó.
+    limpiarAvisoDelVisor();
+    actualizarDestinos(estado.obra);
+}
+
+// Hay algo que enviar si lo marcado es distinto de lo guardado.
+function hayPendientes(obra) {
+    return CATEGORIAS.some(function (categoria) {
+        return (obra.categorias.indexOf(categoria.clave) !== -1) !==
+            (estado.pendientes.indexOf(categoria.clave) !== -1);
+    });
+}
+
+// Recién acá cambia la clasificación del trabajo abierto: entra a los
+// nodos marcados y sale de los desmarcados.
+function enviarPendientes() {
+    const obra = estado.obra;
+    if (obra === null || !hayPendientes(obra)) return;
+
+    CATEGORIAS.forEach(function (categoria) {
+        const puesto = obra.categorias.indexOf(categoria.clave);
+        const quiere = estado.pendientes.indexOf(categoria.clave) !== -1;
+
+        if (quiere && puesto === -1) obra.categorias.push(categoria.clave);
+        if (!quiere && puesto !== -1) obra.categorias.splice(puesto, 1);
+    });
+
+    programarGuardado();
+    refrescar();
+    actualizarDestinos(obra);
+
+    // El trabajo sigue en pantalla aunque haya salido del nodo, para poder
+    // corregirlo; lo que cambia es la cuenta.
     pintarIndice();
 }
 
 function pintarDestinos(obra) {
     const zona = document.getElementById("enviar");
-    zona.querySelectorAll(".destino").forEach(function (n) { n.remove(); });
+    zona.querySelectorAll(".destino, .enviar-boton").forEach(function (n) { n.remove(); });
 
+    // Los nodos van antes del aviso de guardado, y el botón al final.
     CATEGORIAS.forEach(function (categoria) {
         const boton = document.createElement("button");
         boton.type = "button";
         boton.className = "destino";
+        boton.dataset.clave = categoria.clave;
         boton.textContent = categoria.titulo;
-        boton.setAttribute("aria-pressed",
-            String(obra.categorias.indexOf(categoria.clave) !== -1));
-        boton.addEventListener("click", function () {
-            alternarCategoria(obra, categoria.clave);
-        });
-        zona.appendChild(boton);
+        boton.addEventListener("click", function () { alternarPendiente(categoria.clave); });
+        zona.insertBefore(boton, avisoDelVisor);
     });
+
+    const enviar = document.createElement("button");
+    enviar.type = "button";
+    enviar.className = "boton fuerte enviar-boton";
+    enviar.textContent = "Enviar";
+    enviar.addEventListener("click", enviarPendientes);
+    zona.appendChild(enviar);
+
+    actualizarDestinos(obra);
+}
+
+// Solo cambia las marcas y el estado del botón. Sin rehacer los botones,
+// el foco del teclado no se pierde a cada clic.
+function actualizarDestinos(obra) {
+    const zona = document.getElementById("enviar");
+
+    zona.querySelectorAll(".destino").forEach(function (boton) {
+        boton.setAttribute("aria-pressed",
+            String(estado.pendientes.indexOf(boton.dataset.clave) !== -1));
+    });
+    zona.querySelector(".enviar-boton").disabled = !hayPendientes(obra);
 }
 
 /* =========================================================
@@ -1589,50 +854,26 @@ function alternarSeleccion(obra) {
     pintarLote();
 }
 
-// Cuántos del lote ya están en ese nodo.
-function cuantasEn(lista, clave) {
-    return lista.filter(function (obra) {
-        return obra.categorias.indexOf(clave) !== -1;
-    }).length;
-}
-
-// Los nodos que el estudiante no ha tocado reflejan cómo está hoy la
-// selección: todos dentro, ninguno, o mezclado. Los que sí tocó se
-// respetan aunque cambie la selección.
-function recalcularDestinos() {
-    const lista = obrasSeleccionadas();
-
-    CATEGORIAS.forEach(function (categoria) {
-        if (estado.tocados.indexOf(categoria.clave) !== -1) return;
-
-        const dentro = cuantasEn(lista, categoria.clave);
-        estado.destinos[categoria.clave] =
-            lista.length === 0 || (dentro > 0 && dentro < lista.length) ? "mixto" :
-            dentro === lista.length ? "todos" : "ninguno";
-    });
-}
-
-// Un clic decide el nodo para todo el lote. No escribe nada todavía.
+// Un clic elige o descarta un nodo para el lote. No escribe nada todavía.
 function alternarDestino(clave) {
-    estado.destinos[clave] = estado.destinos[clave] === "todos" ? "ninguno" : "todos";
-    if (estado.tocados.indexOf(clave) === -1) estado.tocados.push(clave);
+    const puesto = estado.destinos.indexOf(clave);
+    if (puesto === -1) estado.destinos.push(clave);
+    else estado.destinos.splice(puesto, 1);
+
     pintarLote();
 }
 
-// Recién acá se toca la clasificación. Los nodos que quedaron en "mixto"
-// no se tocan: cada trabajo conserva lo que ya tenía.
+// Recién acá se toca la clasificación: cada trabajo del lote entra a los
+// nodos elegidos. No se saca a ninguno de ningún nodo: la barra no muestra
+// dónde está cada uno, y sacar a ciegas sería perder trabajo. Para sacar
+// uno de un nodo están el visor y el clic derecho.
 function confirmarSeleccion() {
     const lista = obrasSeleccionadas();
-    if (lista.length === 0) return;
+    if (lista.length === 0 || estado.destinos.length === 0) return;
 
     lista.forEach(function (obra) {
-        CATEGORIAS.forEach(function (categoria) {
-            const destino = estado.destinos[categoria.clave];
-            if (destino === "mixto") return;
-
-            const puesto = obra.categorias.indexOf(categoria.clave);
-            if (destino === "todos" && puesto === -1) obra.categorias.push(categoria.clave);
-            if (destino === "ninguno" && puesto !== -1) obra.categorias.splice(puesto, 1);
+        estado.destinos.forEach(function (clave) {
+            if (obra.categorias.indexOf(clave) === -1) obra.categorias.push(clave);
         });
     });
 
@@ -1640,43 +881,39 @@ function confirmarSeleccion() {
     limpiarSeleccion();
 
     // Con el teclado se llega a la barra del lote aun con el visor abierto.
+    // Lo marcado en el visor se rehace desde lo guardado: si no, un Enviar
+    // posterior sacaría al trabajo de los nodos que el lote le acaba de dar.
     if (estado.obra !== null) {
+        estado.pendientes = estado.obra.categorias.slice();
         pintarIndice();
         pintarDestinos(estado.obra);
     }
 }
 
+// Los botones empiezan todos sin marcar, aunque algunos trabajos ya estén
+// en ese nodo. Con varios elegidos, mostrar "ya está" o "3/8" confundía
+// más de lo que ayudaba: no se sabía cuál estaba dónde.
 function pintarLote() {
     const lista = obrasSeleccionadas();
 
     lote.hidden = lista.length === 0;
     if (lista.length === 0) return;
 
-    recalcularDestinos();
     loteCuenta.textContent = lista.length + " seleccionado(s)";
     loteDestinos.innerHTML = "";
 
-    let hayCambios = false;
-
     CATEGORIAS.forEach(function (categoria) {
-        const destino = estado.destinos[categoria.clave];
-        const dentro = cuantasEn(lista, categoria.clave);
-
-        // Hay algo que confirmar si el nodo quedaría distinto a como está.
-        if ((destino === "todos" && dentro < lista.length) ||
-            (destino === "ninguno" && dentro > 0)) hayCambios = true;
-
         const boton = document.createElement("button");
         boton.type = "button";
-        boton.className = "destino" + (destino === "mixto" ? " parcial" : "");
-        boton.textContent = categoria.titulo +
-            (destino === "mixto" ? " · " + dentro + "/" + lista.length : "");
-        boton.setAttribute("aria-pressed", String(destino === "todos"));
+        boton.className = "destino";
+        boton.textContent = categoria.titulo;
+        boton.setAttribute("aria-pressed",
+            String(estado.destinos.indexOf(categoria.clave) !== -1));
         boton.addEventListener("click", function () { alternarDestino(categoria.clave); });
         loteDestinos.appendChild(boton);
     });
 
-    botonConfirmar.disabled = !hayCambios;
+    botonConfirmar.disabled = estado.destinos.length === 0;
 }
 
 // No hay modo de selección: las casillas están siempre y la barra de
@@ -1687,18 +924,195 @@ function pintarLote() {
 // que nunca miró.
 function limpiarSeleccion() {
     estado.seleccion = [];
-    estado.destinos = {};
-    estado.tocados = [];
+    estado.destinos = [];
     refrescar();   // repinta las fichas sin la marca de elegidas
     pintarLote();
 }
 
 /* =========================================================
-   10. Teclado y escuchas
-   Con un trabajo abierto las flechas mueven trabajos; si no, y
-   hay una sección ampliada, mueven secciones.
+   10. Menú del clic derecho y trabajos ocultos
+   El menú actúa sobre un solo trabajo, el que se tocó, aunque
+   haya otros seleccionados: así nunca hace más de lo que se ve.
+   ========================================================= */
+const menu = document.getElementById("menu");
+const botonOcultos = document.getElementById("ver-ocultos");
+let obraDelMenu = null;
+
+function abrirMenu(evento, obra) {
+    evento.preventDefault();
+
+    obraDelMenu = obra;
+    pintarMenu();
+    menu.hidden = false;
+
+    // Con el mouse, el menú sale donde se hizo clic. Con el teclado (tecla
+    // de menú o Mayús+F10) ese punto no cae sobre la ficha: sale al medio.
+    const ficha = evento.currentTarget.getBoundingClientRect();
+    let x = evento.clientX;
+    let y = evento.clientY;
+
+    if (x < ficha.left || x > ficha.right || y < ficha.top || y > ficha.bottom) {
+        x = ficha.left + ficha.width / 2;
+        y = ficha.top + ficha.height / 2;
+    }
+
+    // Si no cabe hacia la derecha o hacia abajo, se corre hacia adentro.
+    const margen = 8;
+    menu.style.left = Math.max(margen, Math.min(x, innerWidth - menu.offsetWidth - margen)) + "px";
+    menu.style.top = Math.max(margen, Math.min(y, innerHeight - menu.offsetHeight - margen)) + "px";
+
+    itemsDelMenu()[0].focus();
+}
+
+function cerrarMenu() {
+    if (menu.hidden) return;
+    menu.hidden = true;
+    obraDelMenu = null;
+}
+
+// Al cerrar con el teclado, el foco vuelve a la ficha y no se pierde.
+function cerrarMenuYVolver() {
+    const obra = obraDelMenu;
+    cerrarMenu();
+
+    const ficha = obra && document.querySelector('[data-obra="' + obra.id + '"] .obra-abrir');
+    if (ficha) ficha.focus();
+}
+
+function itemsDelMenu() {
+    return Array.prototype.slice.call(menu.querySelectorAll(".menu-item"));
+}
+
+function crearItemDeMenu(texto, rol, accion) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "menu-item";
+    item.setAttribute("role", rol);
+    item.textContent = texto;
+    item.addEventListener("click", accion);
+    return item;
+}
+
+function pintarMenu() {
+    const obra = obraDelMenu;
+    menu.innerHTML = "";
+
+    // Las fichas no llevan nombre: el curso dice sobre cuál se abrió.
+    const titulo = document.createElement("p");
+    titulo.className = "menu-titulo";
+    titulo.textContent = obra.curso;
+    menu.appendChild(titulo);
+
+    const rotulo = document.createElement("p");
+    rotulo.className = "menu-rotulo";
+    rotulo.textContent = "Enviar a";
+    menu.appendChild(rotulo);
+
+    // Un solo trabajo: acá sí sirve ver en qué nodos está.
+    CATEGORIAS.forEach(function (categoria) {
+        const item = crearItemDeMenu(categoria.titulo, "menuitemcheckbox", function () {
+            alternarCategoria(obra, categoria.clave);
+            item.setAttribute("aria-checked",
+                String(obra.categorias.indexOf(categoria.clave) !== -1));
+            // Queda abierto, para poder mandarlo a más de un nodo seguido.
+        });
+        item.setAttribute("aria-checked",
+            String(obra.categorias.indexOf(categoria.clave) !== -1));
+        menu.appendChild(item);
+    });
+
+    const separador = document.createElement("div");
+    separador.className = "menu-separador";
+    separador.setAttribute("role", "separator");
+    menu.appendChild(separador);
+
+    const texto = obra.oculta ? "Mostrar trabajo" : "Ocultar trabajo";
+    menu.appendChild(crearItemDeMenu(texto, "menuitem", function () {
+        cambiarOculto(obra, !obra.oculta);
+        cerrarMenu();
+    }));
+}
+
+function manejarTecladoDelMenu(evento) {
+    const items = itemsDelMenu();
+    const actual = items.indexOf(document.activeElement);
+
+    if (evento.key === "Escape") {
+        cerrarMenuYVolver();
+    } else if (evento.key === "Tab") {
+        // Sin preventDefault: el Tab sigue su camino desde la ficha.
+        cerrarMenuYVolver();
+        return;
+    } else if (evento.key === "ArrowDown" || evento.key === "ArrowUp") {
+        const paso = evento.key === "ArrowDown" ? 1 : -1;
+        const desde = actual === -1 ? (paso > 0 ? -1 : items.length) : actual;
+        items[(desde + paso + items.length) % items.length].focus();
+    } else if (evento.key === "Home") {
+        items[0].focus();
+    } else if (evento.key === "End") {
+        items[items.length - 1].focus();
+    } else {
+        return;   // Enter y espacio los resuelve el botón
+    }
+
+    evento.preventDefault();
+}
+
+// Un trabajo oculto sale de la grilla y de los nodos, pero conserva sus
+// nodos: al mostrarlo vuelve a estar donde estaba.
+function cambiarOculto(obra, oculta) {
+    obra.oculta = oculta;
+
+    const quedan = OBRAS.some(function (otra) { return otra.oculta; });
+    if (!quedan) estado.verOcultos = false;
+    if (!estado.verOcultos) sacarOcultosDeLaSeleccion();
+
+    programarGuardado();
+    refrescar();
+    pintarOcultos();
+    pintarLote();
+}
+
+// Un oculto que siguiera seleccionado sin verse se clasificaría a ciegas
+// al confirmar el lote.
+function sacarOcultosDeLaSeleccion() {
+    estado.seleccion = estado.seleccion.filter(function (id) {
+        return !OBRAS.some(function (obra) { return obra.id === id && obra.oculta; });
+    });
+}
+
+function alternarVerOcultos() {
+    estado.verOcultos = !estado.verOcultos;
+    if (!estado.verOcultos) sacarOcultosDeLaSeleccion();
+
+    refrescar();
+    pintarOcultos();
+    pintarLote();
+}
+
+// El botón solo existe si hay algo oculto: es la única forma de recuperarlo.
+function pintarOcultos() {
+    const cuantos = OBRAS.filter(function (obra) { return obra.oculta; }).length;
+
+    botonOcultos.hidden = cuantos === 0;
+    botonOcultos.textContent = estado.verOcultos
+        ? "Esconder ocultos"
+        : "Ver ocultos (" + cuantos + ")";
+    botonOcultos.setAttribute("aria-pressed", String(estado.verOcultos));
+}
+
+/* =========================================================
+   11. Teclado y escuchas
+   Con el menú abierto, el teclado es del menú. Si no, con un
+   trabajo abierto las flechas mueven trabajos; y si no hay
+   trabajo abierto pero sí una sección ampliada, mueven secciones.
    ========================================================= */
 document.addEventListener("keydown", function (evento) {
+    if (!menu.hidden) {
+        manejarTecladoDelMenu(evento);
+        return;
+    }
+
     const enVisor = estado.obra !== null;
 
     if (evento.key === "Escape") {
@@ -1729,8 +1143,22 @@ botonVolver.addEventListener("click", volverAGeneral);
 document.getElementById("lote-limpiar").addEventListener("click", limpiarSeleccion);
 botonConfirmar.addEventListener("click", confirmarSeleccion);
 
+botonOcultos.addEventListener("click", alternarVerOcultos);
+
+// El menú se cierra con un clic fuera, al girar la rueda o al cambiar la
+// ventana: si no, quedaría flotando lejos del trabajo al que se refiere.
+// No se usa el evento scroll: refrescar() también desplaza, y cerraría el
+// menú cada vez que se manda un trabajo a un nodo desde él.
+document.addEventListener("pointerdown", function (evento) {
+    if (!menu.hidden && !menu.contains(evento.target)) cerrarMenu();
+}, true);
+document.addEventListener("wheel", cerrarMenu, { passive: true });
+window.addEventListener("resize", cerrarMenu);
+window.addEventListener("blur", cerrarMenu);
+menu.addEventListener("contextmenu", function (evento) { evento.preventDefault(); });
+
 /* =========================================================
-   11. Arranque
+   12. Arranque
    ========================================================= */
 function mostrarAviso(titulo, texto) {
     document.getElementById("aviso-titulo").textContent = titulo;
@@ -1765,11 +1193,7 @@ function iniciar() {
     refrescar();
     vigilarTamanos();
     aplicarVista();
+    pintarOcultos();
 }
 
 iniciar();
-  </script>
-
-</body>
-
-</html>
