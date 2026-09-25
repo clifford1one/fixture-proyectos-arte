@@ -487,7 +487,7 @@
     border: 1px solid var(--ficha-borde);
     border-radius: var(--radio);
     overflow: hidden;
-    cursor: grab;
+    cursor: zoom-in;
     pointer-events: auto;
     transition:
       left 0.9s var(--suave),
@@ -537,8 +537,8 @@
   .fantasma .agrandar, .fantasma .visto { display: none; }
 
   /* ---------- Elegir ----------
-     Tocar un trabajo lo elige; solo el botón de la esquina lo abre en
-     grande. Lo elegido se ve igual en la lista y en las órbitas. */
+     En la lista, tocar un trabajo lo elige y solo el botón de la esquina
+     lo abre en grande. En los nodos no se elige: tocar abre en grande. */
 
   /* Botón de la esquina para verlo en grande */
   .agrandar {
@@ -567,19 +567,9 @@
   .agrandar svg { display: block; width: 55%; height: 55%; }
 
   .mini:hover .agrandar,
-  .mini:focus-within .agrandar,
-  .ficha:hover .agrandar,
-  .ficha:focus-within .agrandar { opacity: 1; transform: none; }
+  .mini:focus-within .agrandar { opacity: 1; transform: none; }
 
   .agrandar:hover { background: var(--tinta); color: #fff; transform: scale(1.12); }
-
-  /* En la órbita las fichas cambian de tamaño: el botón va con el nodo */
-  .ficha .agrandar {
-    top: 5px;
-    right: 5px;
-    width: clamp(16px, 3.4cqw, 30px);
-    height: clamp(16px, 3.4cqw, 30px);
-  }
 
   /* Sin puntero que pase por encima (pantallas táctiles), se ve siempre */
   @media (hover: none) {
@@ -608,21 +598,11 @@
     pointer-events: none;
   }
 
-  .ficha .visto {
-    top: 5px;
-    left: 5px;
-    width: clamp(14px, 3cqw, 26px);
-    height: clamp(14px, 3cqw, 26px);
-    font-size: clamp(8px, 1.6cqw, 14px);
-  }
-
   .elegida .visto { opacity: 1; transform: scale(1); }
 
   /* Lo elegido se hunde un poco y queda con un anillo */
   .mini.elegida { transform: scale(0.9); box-shadow: 0 0 0 2px var(--tinta); }
   .mini.elegida:hover { transform: scale(0.93); box-shadow: 0 0 0 2px var(--tinta), 0 8px 18px rgba(0, 0, 0, 0.14); }
-  .ficha.elegida { scale: 0.93; box-shadow: 0 0 0 2px var(--tinta), 0 6px 16px rgba(0, 0, 0, 0.14); }
-  .ficha.elegida:hover { scale: 1; box-shadow: 0 0 0 2px var(--tinta), 0 10px 26px rgba(0, 0, 0, 0.2); }
 
   /* La imagen que sigue al puntero al arrastrar varios: el trabajo tomado
      con la cantidad encima. */
@@ -701,8 +681,7 @@
   .lote-rotulo { font-size: 13px; color: var(--tinta-suave); }
   .lote-destinos { display: flex; flex-wrap: wrap; gap: 2px; }
 
-  .destino,
-  .lote-sacar {
+  .destino {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -712,8 +691,6 @@
     color: var(--tinta-media);
     transition: background 0.2s, color 0.2s;
   }
-
-  .lote-sacar { padding-left: 12px; }
 
   .destino::before {
     content: "";
@@ -729,8 +706,7 @@
     transition: opacity 0.3s var(--suave), transform 0.5s var(--resorte);
   }
 
-  .destino:hover, .destino:focus-visible,
-  .lote-sacar:hover, .lote-sacar:focus-visible { background: rgba(0, 0, 0, 0.05); color: var(--tinta); }
+  .destino:hover, .destino:focus-visible { background: rgba(0, 0, 0, 0.05); color: var(--tinta); }
   .destino:hover::before, .destino:focus-visible::before { opacity: 1; transform: scale(1.15); }
 
   .lote-cancelar {
@@ -743,25 +719,6 @@
 
   .lote-cancelar:hover { background: rgba(0, 0, 0, 0.06); color: var(--tinta); rotate: 90deg; }
 
-  /* "Elegir todos" de cada curso */
-  .curso-cabeza {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .curso-elegir {
-    flex: none;
-    margin-top: 2px;
-    font-size: 12px;
-    color: var(--tinta-media);
-    padding: 3px 8px;
-    border-radius: 999px;
-    transition: background 0.2s, color 0.2s;
-  }
-
-  .curso-elegir:hover { background: rgba(0, 0, 0, 0.06); color: var(--tinta); }
 
   /* ---------- Visor ---------- */
   .visor {
@@ -857,6 +814,15 @@
   .visor-curso { font-size: 18px; line-height: 1.3; }
   .visor-linea, .visor-indice { font-size: 13px; color: var(--tinta-suave); }
   .visor-archivo { font-size: 12px; color: var(--tinta-suave); word-break: break-all; }
+
+  .visor-externo {
+    align-self: flex-start;
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--tinta);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 
   .visor-nodos {
     display: flex;
@@ -995,7 +961,7 @@
   <button type="button" class="menu" id="menu" aria-controls="lista" aria-expanded="false"
     aria-label="Mostrar mis trabajos"><span></span><span></span><span></span></button>
 
-  <div class="guardar">
+  <div class="guardar" id="guardar-caja">
     <span class="estado-guardado" id="guardado" aria-live="polite"></span>
     <button type="button" class="boton-guardar" id="boton-guardar" title="Guardar (Ctrl+S)" disabled>Guardar</button>
   </div>
@@ -1014,7 +980,6 @@
     <span class="lote-cuenta" id="lote-cuenta" aria-live="polite"></span>
     <span class="lote-rotulo">Mandar a</span>
     <div class="lote-destinos" id="lote-destinos"></div>
-    <button type="button" class="lote-sacar" id="lote-sacar" hidden>Sacar de su nodo</button>
     <button type="button" class="lote-cancelar" id="lote-cancelar" aria-label="Quitar la selección">✕</button>
   </div>
 
@@ -1027,6 +992,7 @@
         <span class="visor-curso" id="visor-curso"></span>
         <span class="visor-linea" id="visor-linea"></span>
         <span class="visor-archivo" id="visor-archivo"></span>
+        <a class="visor-externo" id="visor-externo" target="_blank" rel="noopener" hidden></a>
         <span class="visor-indice" id="visor-indice"></span>
 
         <div class="visor-nodos">
@@ -1061,6 +1027,10 @@ const EN_APPS_SCRIPT = typeof DATOS !== "undefined";
 const ARCHIVO = EN_APPS_SCRIPT ? DATOS : datosDeEjemplo();
 
 const CATEGORIAS = ARCHIVO.categorias || [];
+
+// Si se guarda la clasificación en la planilla. Lo decide code.gs
+// (GUARDAR_CLASIFICACION); apagado, el botón Guardar no aparece.
+const GUARDA = ARCHIVO.guardar === true;
 const OBRAS = ordenarPorCurso(ARCHIVO.obras || [], ARCHIVO.lineas || []);
 
 // La clasificación guardada se cuelga de cada trabajo.
@@ -1137,8 +1107,14 @@ function urlesDeDrive(id, ancho) {
 // Los videos de Drive no tienen URL directa reproducible: se usa su
 // reproductor. Los de YouTube van por el dominio sin cookies.
 function urlReproductor(o) {
-    if (o.tipo === "youtube") return "https://www.youtube-nocookie.com/embed/" + o.idVideo;
+    if (o.tipo === "youtube") return "https://www.youtube-nocookie.com/embed/" + o.idVideo + "?rel=0&playsinline=1";
     return "https://drive.google.com/file/d/" + o.id + "/preview";
+}
+
+// Dónde ver el video fuera de la página, por si el reproductor no carga.
+function urlExterna(o) {
+    if (o.tipo === "youtube") return "https://www.youtube.com/watch?v=" + o.idVideo;
+    return "https://drive.google.com/file/d/" + o.id + "/view";
 }
 
 function crearImagen(o, ancho) {
@@ -1316,7 +1292,7 @@ const estado = {
     listaAbierta: false,
     ampliado: null,        // clave del nodo ampliado, o null en la vista general
     arrastre: null,        // lo que se está arrastrando (sección 9)
-    seleccion: new Map(),  // id -> clave del nodo donde se eligió, o null si fue en la lista
+    seleccion: new Set(),  // ids elegidos en la lista
     visor: null            // { lista, i, origen } con el visor abierto
 };
 
@@ -1365,6 +1341,7 @@ function pintarGuardar() {
 
 // Después de cada cambio en la clasificación.
 function marcarCambios() {
+    if (!GUARDA) return;
     pintarGuardar();
     mostrarGuardado(hayCambios() ? "Sin guardar" : "");
 }
@@ -1387,7 +1364,7 @@ function mostrarGuardado(texto, falla, motivo) {
 }
 
 function guardar() {
-    if (guardando || !hayCambios()) return;
+    if (!GUARDA || guardando || !hayCambios()) return;
 
     const mapa = mapaDeClasificacion();
     const enviada = firma(mapa);
@@ -1425,7 +1402,7 @@ function guardar() {
 
 // Salir con cambios sin guardar: el navegador pregunta antes.
 window.addEventListener("beforeunload", function (evento) {
-    if (!hayCambios()) return;
+    if (!GUARDA || !hayCambios()) return;
     evento.preventDefault();
     evento.returnValue = "";
 });
@@ -1502,19 +1479,7 @@ function crearBloque(o) {
     const obras = document.createElement("div");
     obras.className = "curso-obras";
 
-    const elegirTodos = document.createElement("button");
-    elegirTodos.type = "button";
-    elegirTodos.className = "curso-elegir";
-    elegirTodos.textContent = "Elegir todos";
-    elegirTodos.addEventListener("click", function () { alternarCurso(seccion); });
-
-    const textos = document.createElement("div");
-    textos.append(titulo, datos);
-    const cabeza = document.createElement("div");
-    cabeza.className = "curso-cabeza";
-    cabeza.append(textos, elegirTodos);
-
-    seccion.append(cabeza, obras);
+    seccion.append(titulo, datos, obras);
     return { seccion: seccion, datos: datos, obras: obras, cuenta: 0 };
 }
 
@@ -1532,7 +1497,7 @@ function crearMini(o) {
     }));
 
     hacerArrastrable(mini, o, null);
-    mini.addEventListener("click", function () { elegir(o, null); });
+    mini.addEventListener("click", function () { elegir(o); });
     return mini;
 }
 
@@ -2051,20 +2016,17 @@ function crearFicha(o, clave) {
     ficha.dataset.obra = o.id;
     ficha.setAttribute("aria-label", nombreDe(o));
 
+    // En el nodo no se elige: tocar abre en grande.
+    ficha.setAttribute("role", "button");
+    ficha.removeAttribute("aria-checked");
+
     contenidoDe(o, 600).forEach(function (parte) { ficha.appendChild(parte); });
-    ficha.append(crearVisto(), crearAgrandar(function () {
-        const obras = obrasDelNodo(clave);
-        abrirVisor(obras, obras.indexOf(o), { tipo: "nodo", clave: clave });
-    }));
-    if (estado.seleccion.has(o.id)) {
-        ficha.classList.add("elegida");
-        ficha.setAttribute("aria-checked", "true");
-    }
 
     hacerArrastrable(ficha, o, clave);
     ficha.addEventListener("click", function (evento) {
         evento.stopPropagation();
-        elegir(o, clave);
+        const obras = obrasDelNodo(clave);
+        abrirVisor(obras, obras.indexOf(o), { tipo: "nodo", clave: clave });
     });
     return ficha;
 }
@@ -2105,7 +2067,8 @@ function hacerArrastrable(elemento, o, desde) {
             // soltó la imagen de arrastre, no de su esquina.
             agarre: { x: evento.clientX - r.left, y: evento.clientY - r.top },
             ancho: r.width, alto: r.height,
-            grupo: estado.seleccion.has(o.id) && estado.seleccion.size > 1
+            // El grupo sale solo desde la lista, que es donde se elige.
+            grupo: !desde && estado.seleccion.has(o.id) && estado.seleccion.size > 1
         };
         evento.dataTransfer.effectAllowed = "move";
         // Firefox no arrastra si no hay datos.
@@ -2199,10 +2162,7 @@ function recibirArrastre(raiz, clave) {
         arrastre.recibido = true;
 
         if (arrastre.grupo) {
-            mandarSeleccion(clave, {
-                moverDesde: arrastre.desde,
-                soltado: { id: arrastre.id, rect: rectDeSoltado(arrastre, evento) }
-            });
+            mandarSeleccion(clave, { id: arrastre.id, rect: rectDeSoltado(arrastre, evento) });
             return;
         }
 
@@ -2237,29 +2197,14 @@ document.addEventListener("drop", function (evento) {
     if (!arrastre || arrastre.recibido || !arrastre.desde) return;
     evento.preventDefault();
     esfumar(arrastre.elemento, rectDeSoltado(arrastre, evento));
-
-    if (!arrastre.grupo) {
-        quitar(obra(arrastre.id), arrastre.desde);
-        return;
-    }
-
-    // En grupo salen del nodo los que se eligieron ahí; los que venían de
-    // la lista no estaban en él.
-    estado.seleccion.forEach(function (origen, id) {
-        const o = obra(id);
-        const i = o ? o.categorias.indexOf(arrastre.desde) : -1;
-        if (origen === arrastre.desde && i !== -1) o.categorias.splice(i, 1);
-    });
-    soltarSeleccion();
-    alCambiar();
+    quitar(obra(arrastre.id), arrastre.desde);
 });
 
 /* =========================================================
    9b. Elegir varios
-   Tocar un trabajo lo elige o lo suelta. Lo elegido se manda
-   de una vez desde la barra de abajo, o arrastrando cualquiera
-   de ellos. Se recuerda dónde se eligió cada uno: "Sacar de su
-   nodo" saca solo los que se eligieron dentro de un nodo.
+   En la lista, tocar un trabajo lo elige o lo suelta. Lo elegido
+   se manda de una vez desde la barra de abajo, o arrastrando
+   cualquiera de ellos. En los nodos no se elige.
    ========================================================= */
 function crearVisto() {
     const visto = document.createElement("span");
@@ -2291,9 +2236,9 @@ function crearAgrandar(alAbrir) {
     return boton;
 }
 
-function elegir(o, origen) {
+function elegir(o) {
     if (estado.seleccion.has(o.id)) estado.seleccion.delete(o.id);
-    else estado.seleccion.set(o.id, origen);
+    else estado.seleccion.add(o.id);
     pintarSeleccion();
 }
 
@@ -2303,51 +2248,15 @@ function soltarSeleccion() {
     pintarSeleccion();
 }
 
-// "Elegir todos" de un curso; si ya estaban todos, los suelta. Se eligen
-// en cascada, de izquierda a derecha.
-function alternarCurso(seccion) {
-    const minis = Array.prototype.slice.call(seccion.querySelectorAll(".mini"));
-    const todos = minis.every(function (m) { return estado.seleccion.has(m.dataset.obra); });
-
-    minis.forEach(function (mini, i) {
-        if (todos) estado.seleccion.delete(mini.dataset.obra);
-        else if (!estado.seleccion.has(mini.dataset.obra)) estado.seleccion.set(mini.dataset.obra, null);
-        if (!QUIETO) {
-            mini.style.transitionDelay = (i * 30) + "ms";
-            setTimeout(function () { mini.style.transitionDelay = ""; }, i * 30 + 500);
-        }
-    });
-    pintarSeleccion();
-}
-
-// Los elegidos que se eligieron dentro de un nodo y siguen en él.
-function elegidosEnNodos() {
-    const pares = [];
-    estado.seleccion.forEach(function (origen, id) {
-        const o = obra(id);
-        if (origen && o && o.categorias.indexOf(origen) !== -1) pares.push({ o: o, clave: origen });
-    });
-    return pares;
-}
-
-// Lo que se ve en pantalla de un trabajo elegido: la ficha del nodo
-// donde se eligió, o si no su miniatura en la lista.
-function elementoElegido(id, origen) {
-    const enNodo = origen && nodos[origen].fichas.get(id);
-    return enNodo || document.querySelector('.mini[data-obra="' + CSS.escape(id) + '"]');
+function miniDe(id) {
+    return document.querySelector('.mini[data-obra="' + CSS.escape(id) + '"]');
 }
 
 function pintarSeleccion() {
-    document.querySelectorAll(".mini, .ficha").forEach(function (el) {
+    document.querySelectorAll(".mini").forEach(function (el) {
         const elegida = estado.seleccion.has(el.dataset.obra);
         el.classList.toggle("elegida", elegida);
         el.setAttribute("aria-checked", String(elegida));
-    });
-
-    document.querySelectorAll(".curso").forEach(function (seccion) {
-        const minis = Array.prototype.slice.call(seccion.querySelectorAll(".mini"));
-        const todos = minis.length > 0 && minis.every(function (m) { return estado.seleccion.has(m.dataset.obra); });
-        seccion.querySelector(".curso-elegir").textContent = todos ? "Soltar todos" : "Elegir todos";
     });
 
     const n = estado.seleccion.size;
@@ -2360,41 +2269,30 @@ function pintarSeleccion() {
         cuenta.textContent = texto;
         animar(cuenta, [{ transform: "scale(1.18)" }, { transform: "none" }], { duration: 420, easing: RESORTE });
     }
-    document.getElementById("lote-sacar").hidden = elegidosEnNodos().length === 0;
 }
 
-/* Manda lo elegido a un nodo. Cada trabajo vuela desde donde está, uno
+/* Manda lo elegido a un nodo. Cada trabajo vuela desde su miniatura, uno
    tras otro. Si el nodo está apartado porque hay otro ampliado, primero
    se vuelve a los tres, para que se vea llegar.
-   opciones.moverDesde: al arrastrar el grupo desde una órbita, los que
-   se eligieron en ese nodo salen de él (igual que al arrastrar uno solo).
-   opciones.soltado: el que se arrastró sale de donde se soltó. */
-function mandarSeleccion(clave, opciones) {
-    opciones = opciones || {};
+   soltado: al arrastrar el grupo, el que se tomó sale de donde se soltó. */
+function mandarSeleccion(clave, soltado) {
     if (estado.seleccion.size === 0) return;
 
     if (estado.ampliado && estado.ampliado !== clave) {
         ampliar(null);
-        setTimeout(function () { mandarSeleccion(clave, opciones); }, QUIETO ? 0 : PASO);
+        setTimeout(function () { mandarSeleccion(clave, soltado); }, QUIETO ? 0 : PASO);
         return;
     }
 
     const llegadas = [];
-    estado.seleccion.forEach(function (origen, id) {
+    estado.seleccion.forEach(function (id) {
         const o = obra(id);
-        if (!o) return;
-
-        const moviendo = opciones.moverDesde && origen === opciones.moverDesde && origen !== clave;
-        const fuente = elementoElegido(id, origen);
-        if (moviendo) {
-            const i = o.categorias.indexOf(origen);
-            if (i !== -1) o.categorias.splice(i, 1);
-        }
-        if (o.categorias.indexOf(clave) !== -1) return;   // ya estaba ahí
+        if (!o || o.categorias.indexOf(clave) !== -1) return;   // ya estaba ahí
         o.categorias.push(clave);
 
+        const fuente = miniDe(id);
         let desde = null;
-        if (opciones.soltado && opciones.soltado.id === id) desde = opciones.soltado.rect;
+        if (soltado && soltado.id === id) desde = soltado.rect;
         else if (fuente && estaEnPantalla(fuente.getBoundingClientRect())) desde = rectangulo(fuente.getBoundingClientRect());
 
         if (fuente && desde) {
@@ -2406,14 +2304,6 @@ function mandarSeleccion(clave, opciones) {
     estado.seleccion.clear();
     pintarSeleccion();
     alCambiar(llegadas);
-}
-
-function sacarSeleccion() {
-    elegidosEnNodos().forEach(function (par) {
-        par.o.categorias.splice(par.o.categorias.indexOf(par.clave), 1);
-    });
-    soltarSeleccion();
-    alCambiar();
 }
 
 // Un botón por nodo en la barra. Al pasar por encima, su círculo se
@@ -2440,7 +2330,6 @@ function crearLote() {
         destinos.appendChild(boton);
     });
 
-    document.getElementById("lote-sacar").addEventListener("click", sacarSeleccion);
     document.getElementById("lote-cancelar").addEventListener("click", soltarSeleccion);
 }
 
@@ -2630,6 +2519,9 @@ function pintarVisor() {
         const marco = document.createElement("iframe");
         marco.src = urlReproductor(o);
         marco.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+        // YouTube no reproduce si la petición no dice desde qué página viene
+        // (su "error 153"), y el marco de Apps Script puede no mandarlo.
+        marco.referrerPolicy = "strict-origin-when-cross-origin";
         marco.title = nombreDe(o);
         medio.appendChild(marco);
 
@@ -2649,6 +2541,14 @@ function pintarVisor() {
     document.getElementById("visor-curso").textContent = o.curso || "Sin curso";
     document.getElementById("visor-linea").textContent = [o.linea, o.semestre].filter(Boolean).join(" · ");
     document.getElementById("visor-archivo").textContent = o.archivo || "";
+
+    const externo = document.getElementById("visor-externo");
+    const esVideo = (o.tipo === "youtube" && o.idVideo) || (o.tipo === "video" && o.id);
+    externo.hidden = !esVideo;
+    if (esVideo) {
+        externo.href = urlExterna(o);
+        externo.textContent = o.tipo === "youtube" ? "Ver en YouTube ↗" : "Ver en Drive ↗";
+    }
     document.getElementById("visor-indice").textContent = (v.i + 1) + " de " + v.lista.length;
 
     const variasObras = v.lista.length > 1;
@@ -2729,7 +2629,7 @@ function actualizarPista() {
     else if (estado.listaAbierta) texto = "Toca trabajos para elegirlos, o arrástralos a un nodo. ⤢ abre uno en grande.";
     else if (!hayClasificados) texto = "Abre la lista ☰ y arrastra tus trabajos hacia un nodo.";
     else if (estado.ampliado) texto = "Toca el centro o Esc para volver a los tres nodos.";
-    else texto = "Toca el centro de un nodo para verlo de cerca, o sus trabajos para elegirlos.";
+    else texto = "Toca el centro de un nodo para verlo de cerca, o un trabajo para verlo en grande.";
 
     if (pista.dataset.texto === texto) return;
     pista.dataset.texto = texto;
@@ -2768,6 +2668,7 @@ function arrancar() {
 
     // Lo que llegó del servidor es lo guardado: de ahí se miden los cambios.
     firmaGuardada = firma(mapaDeClasificacion());
+    document.getElementById("guardar-caja").hidden = !GUARDA;
     document.getElementById("boton-guardar").addEventListener("click", guardar);
 
     crearLista();
@@ -2831,7 +2732,7 @@ function datosDeEjemplo() {
     });
 
     return {
-        error: "", nombre: "Estudiante de ejemplo", urlCarpeta: "",
+        error: "", nombre: "Estudiante de ejemplo", urlCarpeta: "", guardar: false,
         categorias: [
             { clave: "forma", titulo: "Forma y materiales", definicion: "" },
             { clave: "nudo", titulo: "Nudo conceptual", definicion: "" },

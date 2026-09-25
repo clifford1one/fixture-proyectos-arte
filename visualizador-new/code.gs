@@ -15,6 +15,12 @@
   // usen la misma.
   const SPREADSHEET_ID = '1sCBmSOlLlYEPLNkS0hVT8QOzIi0fc7BENiqfaVwwoZI';
 
+  // Guardar en la planilla en qué nodo quedó cada trabajo. Apagado por
+  // ahora: la clasificación vive solo mientras la página está abierta, y
+  // al recargar todo vuelve a quedar sin clasificar. Lo ya guardado en la
+  // pestaña "clasificacion" no se toca. Para volver a guardar, true.
+  const GUARDAR_CLASIFICACION = false;
+
   // Hoja donde se guarda la clasificación. Se crea sola la primera vez.
   // "ocultos" viene del visualizador v4: esta versión no la usa, pero la
   // deja intacta para que las dos puedan convivir sobre la misma planilla.
@@ -130,7 +136,8 @@
       categorias: CATEGORIAS,
       lineas: LINEAS_CURRICULARES,
       obras: obras,
-      clasificacion: leerClasificacion(correo)
+      guardar: GUARDAR_CLASIFICACION,
+      clasificacion: GUARDAR_CLASIFICACION ? leerClasificacion(correo) : {}
     };
   }
 
@@ -138,7 +145,7 @@
   function conError(mensaje) {
     return {
       error: mensaje, categorias: CATEGORIAS, lineas: LINEAS_CURRICULARES,
-      obras: [], clasificacion: {}
+      obras: [], guardar: false, clasificacion: {}
     };
   }
 
@@ -316,6 +323,8 @@
     cliente manda siempre todo, así que no hay que fusionar nada: la última
     escritura es la verdad. */
   function guardarClasificacion(mapa) {
+    if (!GUARDAR_CLASIFICACION) return { exito: false, mensaje: 'El guardado está desactivado.' };
+
     const correo = Session.getActiveUser().getEmail();
     if (!correo) return { exito: false, mensaje: 'No pudimos identificar tu cuenta.' };
 

@@ -51,3 +51,26 @@ Dónde cambiar cosas:
 - Nodos (nombre y definición): `CATEGORIAS` en `code.gs`.
 - Colores y velocidad: variables `--` del `<style>` y `SUAVE`, `RESORTE`, `PASO`, `VUELTA` en el script.
 - Tamaño de las fichas en la órbita: `lado` y `radio` en `dibujarOrbitas()`.
+
+## notas
+
+- añadir drag & drop
+- revisar carga de imagenes pesadas
+- errores
+   - Error de seguridad: el contenido en https://n-34ilfyj4qtgjprf47dbsk7d4we24g4dzvfnojwa-1lu-script.googleusercontent.com/blank no puede cargar o enlazar con file:///.
+   - Error de seguridad: el contenido en https://script.google.com/a/macros/mail.udp.cl/s/AKfycbxYUZZOrpGhS92qUc92E7WGuHII5GT380GHFVisYxHIVT8qrWSY338JWcdnIryIygg/exec?authuser=1 no puede cargar o enlazar con file:///.
+
+- añadir msje de error en drag&drop elemetnos duplicado
+- nuevos nombres de nodos
+
+- revisar linea en vez de orbita(juego AA)
+
+- estar preparadx para tpda cantidad de proyectos
+
+- añadir area de posicon libre
+
+- ver psibilidad lineas
+
+- tener menos control a pos de que los usuairos tengan mayor libertad
+
+- editor de linea sy uniones, imantado al centro del frame
