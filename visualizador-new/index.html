@@ -36,8 +36,14 @@
     --radio: 5px;
 
     --ancho-lista: clamp(320px, 35vw, 607px);
-    --paso: 0.6s;
-    --curva: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Movimiento. --suave frena largo al llegar, que es lo que hace que
+       algo se sienta pesado y no mecánico; --resorte se pasa un poco y
+       vuelve, para lo que aparece o se agranda. El script usa las mismas
+       curvas (sección 3): si se cambian acá, cambiarlas también allá. */
+    --paso: 0.8s;
+    --suave: cubic-bezier(0.22, 1, 0.36, 1);
+    --resorte: cubic-bezier(0.34, 1.56, 0.64, 1);
 
     --fuente: 'WorkSans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
@@ -67,8 +73,12 @@
 
   [hidden] { display: none !important; }
 
+  /* Para mover algo a su punto de partida sin que se vea el viaje */
+  .quieta { transition: none !important; }
+
   /* ---------- Lista lateral ----------
-     Se desliza desde la izquierda y empuja al escenario. */
+     Se desliza desde la izquierda. Los nodos se corren en el mismo
+     tiempo y con la misma curva, así se leen como un solo movimiento. */
   .lista {
     position: fixed;
     inset: 0 auto 0 0;
@@ -77,11 +87,14 @@
     overflow-y: auto;
     padding: 55px 20px 40px;
     transform: translateX(-100%);
-    transition: transform var(--paso) var(--curva);
+    transition: transform var(--paso) var(--suave), box-shadow var(--paso) var(--suave);
     z-index: 5;
   }
 
-  .con-lista .lista { transform: none; }
+  .con-lista .lista {
+    transform: none;
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.06);
+  }
 
   .lista-cabeza {
     display: flex;
@@ -143,15 +156,18 @@
     background: var(--hueco);
     overflow: hidden;
     cursor: grab;
-    transition: transform 0.15s var(--curva), box-shadow 0.15s var(--curva);
+    transition:
+      transform 0.35s var(--resorte),
+      box-shadow 0.35s var(--suave),
+      opacity 0.3s var(--suave);
   }
 
-  .mini:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12); }
-  .mini:active { cursor: grabbing; }
-  .mini.arrastrando { opacity: 0.35; }
+  .mini:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14); }
+  .mini:active { cursor: grabbing; transform: scale(0.96); }
 
   .mini img,
-  .ficha img {
+  .ficha img,
+  .fantasma img {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -229,17 +245,19 @@
     font-size: clamp(8px, 1.4vw, 22px);
   }
 
-  /* ---------- Escenario ---------- */
+  /* ---------- Escenario ----------
+     Siempre ocupa la pantalla entera: cuando se abre la lista no se
+     achica, los nodos se corren. Así el único que se mueve es cada nodo,
+     con transform, que es lo que el navegador anima sin trabarse. */
   .escenario {
     position: fixed;
-    inset: 0 0 0 0;
-    transition: left var(--paso) var(--curva);
+    inset: 0;
   }
 
-  .con-lista .escenario { left: var(--ancho-lista); }
-
+  /* Fuera del escenario: el escenario es fijo y eso lo vuelve una capa
+     propia, que quedaría debajo de la lista en pantallas angostas. */
   .menu {
-    position: absolute;
+    position: fixed;
     left: 21px;
     top: 13px;
     width: 64px;
@@ -249,18 +267,20 @@
     justify-content: center;
     gap: 13px;
     padding: 0 6px;
-    z-index: 4;
+    z-index: 6;
+    transition: translate var(--paso) var(--suave);
   }
 
   .menu span {
     display: block;
     height: 1px;
     background: var(--tinta);
-    transition: transform 0.3s var(--curva), opacity 0.3s var(--curva);
+    transition: transform 0.55s var(--resorte), opacity 0.25s var(--suave);
   }
 
+  .menu:hover span:nth-child(2) { transform: scaleX(0.7); }
   .con-lista .menu span:nth-child(1) { transform: translateY(14px) rotate(45deg); }
-  .con-lista .menu span:nth-child(2) { opacity: 0; }
+  .con-lista .menu span:nth-child(2) { opacity: 0; transform: scaleX(0); }
   .con-lista .menu span:nth-child(3) { transform: translateY(-14px) rotate(-45deg); }
 
   .volver {
@@ -273,23 +293,69 @@
     border-radius: 999px;
     z-index: 4;
     opacity: 0;
+    transform: translateX(-12px);
     pointer-events: none;
-    transition: opacity 0.3s var(--curva);
+    transition:
+      opacity 0.45s var(--suave),
+      transform 0.6s var(--suave),
+      translate var(--paso) var(--suave),
+      color 0.2s, background 0.2s;
   }
 
-  .ampliado .volver { opacity: 1; pointer-events: auto; }
+  .ampliado .volver { opacity: 1; transform: none; pointer-events: auto; }
   .volver:hover { color: var(--tinta); background: rgba(0, 0, 0, 0.05); }
 
-  .estado-guardado {
-    position: absolute;
-    right: 24px;
-    top: 30px;
-    font-size: 13px;
-    color: var(--tinta-suave);
-    z-index: 4;
+  /* Los controles viajan con el borde de la lista */
+  .con-lista .menu,
+  .con-lista .volver { translate: var(--ancho-lista) 0; }
+
+  /* Guardar, arriba a la derecha. Apagado mientras no hay nada nuevo;
+     se enciende cuando hay cambios sin guardar. */
+  .guardar {
+    position: fixed;
+    right: 20px;
+    top: 20px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
 
-  .estado-guardado.falla { color: var(--tinta); font-weight: 600; }
+  .estado-guardado {
+    font-size: 13px;
+    color: var(--tinta-suave);
+    transition: opacity 0.6s var(--suave);
+  }
+
+  .estado-guardado.apagado { opacity: 0; }
+  .estado-guardado.falla { color: var(--tinta); font-weight: 600; cursor: help; }
+
+  .boton-guardar {
+    padding: 9px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    background: var(--fondo);
+    color: var(--tinta-suave);
+    font-size: 14px;
+    transition:
+      background 0.3s var(--suave),
+      color 0.3s var(--suave),
+      border-color 0.3s var(--suave),
+      box-shadow 0.3s var(--suave),
+      transform 0.45s var(--resorte);
+  }
+
+  .boton-guardar:disabled { cursor: default; }
+
+  .con-cambios .boton-guardar:not(:disabled) {
+    background: var(--tinta);
+    border-color: var(--tinta);
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  }
+
+  .con-cambios .boton-guardar:not(:disabled):hover { transform: translateY(-1px) scale(1.03); }
+  .boton-guardar:not(:disabled):active { transform: scale(0.96); }
 
   .pista {
     position: absolute;
@@ -303,25 +369,28 @@
     pointer-events: none;
     z-index: 4;
     padding: 0 16px;
+    transition: translate var(--paso) var(--suave), opacity 0.3s var(--suave);
   }
+
+  .con-lista .pista { translate: calc(var(--ancho-lista) / 2) 0; }
 
   /* ---------- Nodos ----------
      Cada nodo es un cuadrado que el script ubica y dimensiona. Todo lo de
      adentro va en proporción al nodo, así el mismo nodo sirve de chico en
-     la vista general y de grande en la ampliada, y la transición entre
-     las dos sale sola. */
+     la vista general y de grande en la ampliada.
+
+     El cambio de tamaño no se anima acá: el script pone el nodo de una
+     vez en su lugar final y lo hace crecer desde donde estaba con un
+     transform (sección 8). */
   .nodo {
     position: absolute;
     container-type: size;
-    transition:
-      left var(--paso) var(--curva),
-      top var(--paso) var(--curva),
-      width var(--paso) var(--curva),
-      height var(--paso) var(--curva),
-      opacity var(--paso) var(--curva);
+    transform-origin: 0 0;
+    will-change: transform;
+    transition: opacity 0.7s var(--suave), filter 0.7s var(--suave);
   }
 
-  .nodo.fuera { opacity: 0; pointer-events: none; }
+  .nodo.fuera { opacity: 0; filter: blur(8px); pointer-events: none; }
 
   /* El halo: centro blanco, anillo gris difuso, borde que se disuelve.
      Son los mismos cortes del degradado del Figma. */
@@ -334,11 +403,32 @@
       rgba(30, 30, 30, 0.4) 60%,
       rgba(30, 30, 30, 0.4) 70%,
       rgba(0, 0, 0, 0) 90%);
-    transition: transform 0.35s var(--curva), filter 0.35s var(--curva);
+    transition: transform 0.6s var(--resorte), filter 0.5s var(--suave);
     pointer-events: none;
   }
 
-  .nodo.sobre .aura { transform: scale(1.06); filter: brightness(0.8); }
+  .nodo:hover .aura { transform: scale(1.025); }
+
+  /* Mientras se arrastra, los tres respiran: dicen "suéltalo acá". El que
+     está debajo del puntero deja de respirar y se abre. */
+  .arrastrando .aura { animation: respirar 1.7s ease-in-out infinite alternate; }
+  .arrastrando .nodo:nth-child(2) .aura { animation-delay: -0.55s; }
+  .arrastrando .nodo:nth-child(3) .aura { animation-delay: -1.1s; }
+  .nodo.sobre .aura { animation: none; transform: scale(1.1); filter: brightness(0.8); }
+
+  @keyframes respirar {
+    from { transform: scale(1); }
+    to { transform: scale(1.04); }
+  }
+
+  /* El anillo que se expande al soltar algo en un nodo */
+  .onda {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1.5px solid rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
 
   /* El centro blanco es el que se toca para ampliar */
   .rotulo {
@@ -358,11 +448,14 @@
     line-height: 1.2;
     letter-spacing: 0.02em;
     padding: 0 4%;
+    transition: letter-spacing 0.5s var(--suave);
   }
 
+  .nodo:not(.grande) .rotulo:hover { letter-spacing: 0.06em; }
   .rotulo:focus-visible { outline-offset: -6px; }
 
   .rotulo .cuenta {
+    display: inline-block;
     margin-top: 0.5em;
     font-size: 0.55em;
     letter-spacing: 0.08em;
@@ -381,44 +474,310 @@
 
   .nodo:not(.grande) .definicion { display: none; }
 
-  /* Ficha en órbita: el script le da centro y tamaño en % del nodo */
+  /* Las fichas giran con esta capa, muy despacio */
+  .orbita { position: absolute; inset: 0; pointer-events: none; }
+
+  /* Ficha en órbita: el script le da centro y tamaño en % del nodo.
+     Se centra con translate y no con transform: así el giro que la
+     mantiene derecha (rotate) gira sobre su centro y no la desplaza. */
   .ficha {
     position: absolute;
-    transform: translate(-50%, -50%);
+    translate: -50% -50%;
     background: var(--ficha);
     border: 1px solid var(--ficha-borde);
     border-radius: var(--radio);
     overflow: hidden;
     cursor: grab;
+    pointer-events: auto;
     transition:
-      left var(--paso) var(--curva),
-      top var(--paso) var(--curva),
-      width var(--paso) var(--curva),
-      height var(--paso) var(--curva),
-      opacity 0.4s var(--curva),
-      box-shadow 0.2s var(--curva);
+      left 0.9s var(--suave),
+      top 0.9s var(--suave),
+      width 0.6s var(--suave),
+      height 0.6s var(--suave),
+      opacity 0.45s var(--suave),
+      scale 0.55s var(--resorte),
+      box-shadow 0.3s var(--suave);
   }
 
   /* !important: el orden en la órbita va como z-index en línea */
-  .ficha:hover, .ficha:focus-visible { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18); z-index: 500 !important; }
+  .ficha:hover,
+  .ficha:focus-visible {
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2);
+    scale: 1.07;
+    z-index: 500 !important;
+  }
+
   .ficha:active { cursor: grabbing; }
-  .ficha.naciendo { opacity: 0; }
-  .ficha.arrastrando { opacity: 0.3; }
+  .ficha.naciendo { opacity: 0; scale: 0.3; }
+  .ficha.esperando { opacity: 0; }
+  .ficha.arrastrando,
+  .mini.arrastrando { opacity: 0.3; }
   .ficha .extracto { font-size: clamp(3px, 1.1cqw, 13px); }
+
+  /* El que está abierto en el visor queda como hueco en su lugar */
+  .en-visor { opacity: 0 !important; }
+
+  /* Copia que viaja de un lugar a otro: de la lista al nodo, de la
+     miniatura al visor. Es aparte del original para poder cruzar la
+     pantalla sin salirse de la capa que la contiene. */
+  .fantasma {
+    position: fixed !important;
+    z-index: 40;
+    margin: 0;
+    translate: none !important;
+    transform: none;
+    scale: none !important;
+    transition: none !important;
+    pointer-events: none;
+    border-radius: var(--radio);
+    overflow: hidden;
+  }
+
+  .fantasma .extracto { font-size: 8px; }
+  .fantasma .agrandar, .fantasma .visto { display: none; }
+
+  /* ---------- Elegir ----------
+     Tocar un trabajo lo elige; solo el botón de la esquina lo abre en
+     grande. Lo elegido se ve igual en la lista y en las órbitas. */
+
+  /* Botón de la esquina para verlo en grande */
+  .agrandar {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 2;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    color: var(--tinta);
+    cursor: zoom-in;
+    opacity: 0;
+    transform: scale(0.7);
+    transition:
+      opacity 0.25s var(--suave),
+      transform 0.4s var(--resorte),
+      background 0.2s, color 0.2s;
+  }
+
+  .agrandar svg { display: block; width: 55%; height: 55%; }
+
+  .mini:hover .agrandar,
+  .mini:focus-within .agrandar,
+  .ficha:hover .agrandar,
+  .ficha:focus-within .agrandar { opacity: 1; transform: none; }
+
+  .agrandar:hover { background: var(--tinta); color: #fff; transform: scale(1.12); }
+
+  /* En la órbita las fichas cambian de tamaño: el botón va con el nodo */
+  .ficha .agrandar {
+    top: 5px;
+    right: 5px;
+    width: clamp(16px, 3.4cqw, 30px);
+    height: clamp(16px, 3.4cqw, 30px);
+  }
+
+  /* Sin puntero que pase por encima (pantallas táctiles), se ve siempre */
+  @media (hover: none) {
+    .agrandar { opacity: 1; transform: none; }
+  }
+
+  /* La marca de elegido: salta al aparecer */
+  .visto {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    z-index: 2;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--tinta);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0;
+    transform: scale(0);
+    transition: transform 0.45s var(--resorte), opacity 0.2s var(--suave);
+    pointer-events: none;
+  }
+
+  .ficha .visto {
+    top: 5px;
+    left: 5px;
+    width: clamp(14px, 3cqw, 26px);
+    height: clamp(14px, 3cqw, 26px);
+    font-size: clamp(8px, 1.6cqw, 14px);
+  }
+
+  .elegida .visto { opacity: 1; transform: scale(1); }
+
+  /* Lo elegido se hunde un poco y queda con un anillo */
+  .mini.elegida { transform: scale(0.9); box-shadow: 0 0 0 2px var(--tinta); }
+  .mini.elegida:hover { transform: scale(0.93); box-shadow: 0 0 0 2px var(--tinta), 0 8px 18px rgba(0, 0, 0, 0.14); }
+  .ficha.elegida { scale: 0.93; box-shadow: 0 0 0 2px var(--tinta), 0 6px 16px rgba(0, 0, 0, 0.14); }
+  .ficha.elegida:hover { scale: 1; box-shadow: 0 0 0 2px var(--tinta), 0 10px 26px rgba(0, 0, 0, 0.2); }
+
+  /* La imagen que sigue al puntero al arrastrar varios: el trabajo tomado
+     con la cantidad encima. */
+  .pila {
+    position: fixed !important;
+    left: -2000px !important;
+    top: 0 !important;
+    translate: none !important;
+    scale: none !important;
+    transform: none !important;
+    border-radius: var(--radio);
+  }
+
+  .pila .agrandar, .pila .visto, .pila .marcas { display: none; }
+
+  .pila-numero {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 8px;
+    translate: -50% -50%;
+    border-radius: 999px;
+    background: var(--tinta);
+    color: #fff;
+    font-size: 14px;
+    line-height: 30px;
+    text-align: center;
+  }
+
+  /* Barra de lo elegido: sube desde abajo cuando hay algo elegido */
+  .lote {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 18px;
+    z-index: 7;
+    width: max-content;
+    max-width: calc(100% - 32px);
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 16px;
+    padding: 8px 8px 8px 22px;
+    background: rgba(255, 255, 255, 0.92);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 999px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+    font-size: 14px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(26px) scale(0.96);
+    transition:
+      opacity 0.35s var(--suave),
+      transform 0.6s var(--resorte),
+      translate var(--paso) var(--suave),
+      visibility 0s linear 0.35s;
+  }
+
+  .con-seleccion .lote {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition-delay: 0s;
+  }
+
+  .con-lista .lote { translate: calc(var(--ancho-lista) / 2) 0; }
+  .con-seleccion .pista { opacity: 0; }
+
+  .lote-cuenta { display: inline-block; font-weight: 500; min-width: 8ch; }
+  .lote-rotulo { font-size: 13px; color: var(--tinta-suave); }
+  .lote-destinos { display: flex; flex-wrap: wrap; gap: 2px; }
+
+  .destino,
+  .lote-sacar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 6px 6px;
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--tinta-media);
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .lote-sacar { padding-left: 12px; }
+
+  .destino::before {
+    content: "";
+    width: 26px;
+    height: 26px;
+    flex: none;
+    border-radius: 50%;
+    background: radial-gradient(circle closest-side,
+      rgba(217, 217, 217, 0) 30%, rgba(30, 30, 30, 0.4) 60%,
+      rgba(30, 30, 30, 0.4) 70%, rgba(0, 0, 0, 0) 90%);
+    opacity: 0.6;
+    transform: scale(0.9);
+    transition: opacity 0.3s var(--suave), transform 0.5s var(--resorte);
+  }
+
+  .destino:hover, .destino:focus-visible,
+  .lote-sacar:hover, .lote-sacar:focus-visible { background: rgba(0, 0, 0, 0.05); color: var(--tinta); }
+  .destino:hover::before, .destino:focus-visible::before { opacity: 1; transform: scale(1.15); }
+
+  .lote-cancelar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    color: var(--tinta-media);
+    transition: background 0.2s, color 0.2s, rotate 0.45s var(--resorte);
+  }
+
+  .lote-cancelar:hover { background: rgba(0, 0, 0, 0.06); color: var(--tinta); rotate: 90deg; }
+
+  /* "Elegir todos" de cada curso */
+  .curso-cabeza {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .curso-elegir {
+    flex: none;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--tinta-media);
+    padding: 3px 8px;
+    border-radius: 999px;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .curso-elegir:hover { background: rgba(0, 0, 0, 0.06); color: var(--tinta); }
 
   /* ---------- Visor ---------- */
   .visor {
     position: fixed;
     inset: 0;
     z-index: 20;
-    background: rgba(255, 255, 255, 0.97);
+    background: rgba(255, 255, 255, 0.9);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 72px 88px;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s var(--curva);
+    transition: opacity 0.45s var(--suave);
   }
 
   .visor.abierto { opacity: 1; pointer-events: auto; }
@@ -438,13 +797,18 @@
     align-items: center;
     justify-content: center;
     min-height: 0;
+    transition: opacity 0.35s var(--suave);
   }
 
+  .visor-medio.oculto { opacity: 0; transition-duration: 0.12s; }
+
+  /* La imagen llena la caja y se ajusta adentro: así su rectángulo visible
+     se puede calcular antes de que cargue, y el viaje desde la miniatura
+     llega justo donde va a quedar. */
   .visor-medio img {
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
-    border-radius: var(--radio);
   }
 
   .visor-medio iframe {
@@ -514,6 +878,7 @@
     font-size: 14px;
     padding: 4px 0;
     color: var(--tinta-media);
+    transition: color 0.3s var(--suave);
   }
 
   .alternar::before {
@@ -526,12 +891,13 @@
       rgba(217, 217, 217, 0) 30%, rgba(30, 30, 30, 0.4) 60%,
       rgba(30, 30, 30, 0.4) 70%, rgba(0, 0, 0, 0) 90%);
     opacity: 0.35;
-    transition: opacity 0.2s var(--curva), transform 0.2s var(--curva);
+    transform: scale(0.9);
+    transition: opacity 0.3s var(--suave), transform 0.55s var(--resorte);
   }
 
-  .alternar:hover::before { opacity: 0.6; }
+  .alternar:hover::before { opacity: 0.6; transform: scale(1); }
   .alternar[aria-pressed="true"] { color: var(--tinta); }
-  .alternar[aria-pressed="true"]::before { opacity: 1; transform: scale(1.12); }
+  .alternar[aria-pressed="true"]::before { opacity: 1; transform: scale(1.18); }
 
   .flecha,
   .cerrar {
@@ -541,13 +907,17 @@
     height: 48px;
     border-radius: 50%;
     color: var(--tinta-media);
+    transition: color 0.2s, background 0.2s, translate 0.35s var(--resorte), rotate 0.45s var(--resorte);
   }
 
   .flecha:hover, .cerrar:hover { color: var(--tinta); background: rgba(0, 0, 0, 0.05); }
   .flecha { top: 50%; transform: translateY(-50%); }
   .previa { left: 20px; }
   .siguiente { right: 20px; }
+  .previa:hover { translate: -4px 0; }
+  .siguiente:hover { translate: 4px 0; }
   .cerrar { top: 16px; right: 20px; font-size: 18px; }
+  .cerrar:hover { rotate: 90deg; }
 
   /* ---------- Aviso ---------- */
   .aviso {
@@ -571,11 +941,14 @@
   .demo {
     position: fixed;
     right: 24px;
-    top: 30px;
+    top: 72px;
     margin: 0;
     z-index: 6;
+    max-width: calc(100% - 130px);
+    text-align: right;
     font-size: 12px;
     color: var(--tinta-suave);
+    pointer-events: none;
   }
 
   /* ---------- Pantallas angostas ----------
@@ -583,8 +956,9 @@
      dos cosas. Se clasifica desde el visor. */
   @media (max-width: 700px) {
     :root { --ancho-lista: 100vw; }
-    .con-lista .escenario { left: 0; }
-    .con-lista .menu { position: fixed; z-index: 8; }
+    .con-lista .menu, .con-lista .volver, .con-lista .pista, .con-lista .lote { translate: none; }
+    .lote { bottom: 12px; border-radius: 18px; padding: 10px 12px; gap: 4px 10px; }
+    .lote-rotulo { display: none; }
     .lista { padding-top: 76px; padding-left: 12px; padding-right: 12px; }
     .curso { padding: 16px; }
     .mini { width: 72px; height: 72px; }
@@ -596,8 +970,14 @@
     .volver { left: 84px; }
   }
 
+  /* Quien pidió menos movimiento en su sistema recibe los cambios de
+     golpe. El script hace lo mismo con lo suyo (QUIETO). */
   @media (prefers-reduced-motion: reduce) {
-    :root { --paso: 0.01s; }
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
   }
 </style>
 </head>
@@ -612,25 +992,38 @@
     <div id="cursos"></div>
   </aside>
 
+  <button type="button" class="menu" id="menu" aria-controls="lista" aria-expanded="false"
+    aria-label="Mostrar mis trabajos"><span></span><span></span><span></span></button>
+
+  <div class="guardar">
+    <span class="estado-guardado" id="guardado" aria-live="polite"></span>
+    <button type="button" class="boton-guardar" id="boton-guardar" title="Guardar (Ctrl+S)" disabled>Guardar</button>
+  </div>
+
   <main class="escenario" id="escenario">
-    <button type="button" class="menu" id="menu" aria-controls="lista" aria-expanded="false"
-      aria-label="Mostrar mis trabajos"><span></span><span></span><span></span></button>
 
     <button type="button" class="volver" id="volver">← Todos los nodos</button>
-
-    <span class="estado-guardado" id="guardado" aria-live="polite"></span>
 
     <div id="nodos"></div>
 
     <p class="pista" id="pista"></p>
   </main>
 
+  <!-- Lo elegido y a dónde mandarlo -->
+  <div class="lote" id="lote" role="toolbar" aria-label="Trabajos elegidos">
+    <span class="lote-cuenta" id="lote-cuenta" aria-live="polite"></span>
+    <span class="lote-rotulo">Mandar a</span>
+    <div class="lote-destinos" id="lote-destinos"></div>
+    <button type="button" class="lote-sacar" id="lote-sacar" hidden>Sacar de su nodo</button>
+    <button type="button" class="lote-cancelar" id="lote-cancelar" aria-label="Quitar la selección">✕</button>
+  </div>
+
   <!-- Trabajo en primer plano -->
   <div class="visor" id="visor" role="dialog" aria-modal="true" aria-label="Trabajo">
     <div class="visor-caja">
       <div class="visor-medio" id="visor-medio"></div>
 
-      <div class="visor-datos">
+      <div class="visor-datos" id="visor-datos">
         <span class="visor-curso" id="visor-curso"></span>
         <span class="visor-linea" id="visor-linea"></span>
         <span class="visor-archivo" id="visor-archivo"></span>
@@ -671,9 +1064,9 @@ const CATEGORIAS = ARCHIVO.categorias || [];
 const OBRAS = ordenarPorCurso(ARCHIVO.obras || [], ARCHIVO.lineas || []);
 
 // La clasificación guardada se cuelga de cada trabajo.
-OBRAS.forEach(function (obra) {
-    const guardadas = (ARCHIVO.clasificacion && ARCHIVO.clasificacion[obra.id]) || [];
-    obra.categorias = guardadas.filter(function (clave) { return categoria(clave); });
+OBRAS.forEach(function (o) {
+    const guardadas = (ARCHIVO.clasificacion && ARCHIVO.clasificacion[o.id]) || [];
+    o.categorias = guardadas.filter(function (clave) { return categoria(clave); });
 });
 
 function categoria(clave) {
@@ -807,26 +1200,141 @@ function contenidoDe(o, ancho) {
 }
 
 /* =========================================================
-   3. Estado
+   3. Movimiento
+   Las piezas comunes de todas las animaciones. Todo lo que se
+   mueve por la pantalla pasa por acá, para que compartan curvas
+   y tiempos y el conjunto se lea como un solo lenguaje.
+   ========================================================= */
+
+// Quien pidió menos movimiento en su sistema recibe los cambios de golpe.
+const QUIETO = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Las mismas curvas de --suave y --resorte en el CSS.
+const SUAVE = "cubic-bezier(0.22, 1, 0.36, 1)";
+const RESORTE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+const HUIDA = "cubic-bezier(0.55, 0, 1, 0.45)";
+
+// Lo que dura --paso: la lista, los nodos al correrse o ampliarse.
+const PASO = 800;
+
+// Una vuelta completa de la órbita. Lento a propósito: se tiene que notar
+// que está viva, no marear.
+const VUELTA = 240000;
+
+// Element.animate que respeta QUIETO y devuelve una promesa que no falla
+// aunque la animación se cancele.
+function animar(elemento, cuadros, opciones) {
+    if (QUIETO || !elemento.animate) return Promise.resolve();
+    const animacion = elemento.animate(cuadros, opciones);
+    return animacion.finished.catch(function () {});
+}
+
+function rectangulo(r) {
+    return { left: r.left, top: r.top, width: r.width, height: r.height };
+}
+
+function estaEnPantalla(r) {
+    return r.width > 0 && r.bottom > 0 && r.right > 0 &&
+        r.top < window.innerHeight && r.left < window.innerWidth;
+}
+
+/* Una copia del elemento viaja de un rectángulo de pantalla a otro. Se
+   eleva a mitad de camino (la sombra crece y vuelve), que es lo que la
+   hace sentirse levantada y no deslizada. Devuelve la copia ya quieta en
+   el destino: quien llama decide cómo desaparece. */
+function volar(fuente, desde, hasta, duracion, retardo) {
+    if (QUIETO || !fuente) return Promise.resolve(null);
+
+    const copia = fuente.cloneNode(true);
+    copia.removeAttribute("style");
+    copia.removeAttribute("tabindex");
+    copia.removeAttribute("role");
+    copia.setAttribute("aria-hidden", "true");
+    ["arrastrando", "naciendo", "esperando", "en-visor", "quieta", "elegida"].forEach(function (clase) {
+        copia.classList.remove(clase);
+    });
+    copia.classList.add("fantasma");
+    colocarEn(copia, hasta);
+    document.body.appendChild(copia);
+
+    const animacion = copia.animate([
+        {
+            left: desde.left + "px", top: desde.top + "px",
+            width: desde.width + "px", height: desde.height + "px",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)"
+        },
+        { offset: 0.5, boxShadow: "0 24px 50px rgba(0, 0, 0, 0.22)" },
+        {
+            left: hasta.left + "px", top: hasta.top + "px",
+            width: hasta.width + "px", height: hasta.height + "px",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)"
+        }
+    // Con retardo, la copia espera quieta en el punto de partida: así un
+    // grupo sale uno tras otro y no todos juntos.
+    ], { duration: duracion || 700, delay: retardo || 0, easing: SUAVE, fill: "backwards" });
+
+    return animacion.finished.then(function () { return copia; }, function () { return copia; });
+}
+
+function colocarEn(elemento, r) {
+    elemento.style.left = r.left + "px";
+    elemento.style.top = r.top + "px";
+    elemento.style.width = r.width + "px";
+    elemento.style.height = r.height + "px";
+}
+
+function desvanecer(elemento, duracion) {
+    if (!elemento) return;
+    animar(elemento, [{ opacity: 1 }, { opacity: 0 }], { duration: duracion || 300, easing: SUAVE })
+        .then(function () { elemento.remove(); });
+}
+
+// Lo que se suelta fuera de todo nodo se deshace donde cayó.
+function esfumar(fuente, r) {
+    if (QUIETO || !fuente) return;
+    volar(fuente, r, r, 1).then(function (copia) {
+        animar(copia, [
+            { opacity: 0.9, transform: "none", filter: "blur(0)" },
+            { opacity: 0, transform: "scale(0.6)", filter: "blur(6px)" }
+        ], { duration: 420, easing: HUIDA }).then(function () { copia.remove(); });
+    });
+}
+
+// Muestra un elemento que estaba oculto sin que se vea su transición:
+// la copia que viajó ya lo está tapando.
+function destapar(elemento, clase) {
+    elemento.classList.add("quieta");
+    elemento.classList.remove(clase);
+    void elemento.offsetWidth;
+    elemento.classList.remove("quieta");
+}
+
+/* =========================================================
+   4. Estado
    ========================================================= */
 const estado = {
     listaAbierta: false,
     ampliado: null,        // clave del nodo ampliado, o null en la vista general
-    arrastre: null,        // { id, desde } mientras se arrastra un trabajo
-    visor: null            // { lista, i } con el visor abierto
+    arrastre: null,        // lo que se está arrastrando (sección 9)
+    seleccion: new Map(),  // id -> clave del nodo donde se eligió, o null si fue en la lista
+    visor: null            // { lista, i, origen } con el visor abierto
 };
 
 const cuerpo = document.body;
-const escenario = document.getElementById("escenario");
 const capaNodos = document.getElementById("nodos");
 const lista = document.getElementById("lista");
 
 /* =========================================================
-   4. Guardado
-   No se llama al servidor en cada cambio: se junta lo que pasó
-   en casi un segundo y se manda el mapa completo de una vez.
+   5. Guardado
+   Nada se guarda solo: los cambios quedan en la pantalla hasta
+   que se aprieta "Guardar" (o Ctrl+S), y entonces se manda el
+   mapa completo de una vez. Recargar sin guardar vuelve a lo
+   último guardado; por eso, si hay cambios pendientes, el
+   navegador pregunta antes de salir.
    ========================================================= */
-let temporizador = null;
+let apagarGuardado = null;
+let guardando = false;
+let firmaGuardada = "";   // cómo estaba la clasificación la última vez que se guardó
 
 function mapaDeClasificacion() {
     const mapa = {};
@@ -836,40 +1344,97 @@ function mapaDeClasificacion() {
     return mapa;
 }
 
-function mostrarGuardado(texto, falla) {
-    const aviso = document.getElementById("guardado");
-    aviso.textContent = texto;
-    aviso.classList.toggle("falla", !!falla);
+// Una huella de la clasificación que no depende del orden en que se
+// agregaron los nodos: si se deshace un cambio, vuelve a "sin cambios".
+function firma(mapa) {
+    return JSON.stringify(Object.keys(mapa).sort().map(function (id) {
+        return [id, mapa[id].slice().sort()];
+    }));
 }
 
-function programarGuardado() {
-    if (!EN_APPS_SCRIPT) return;
-    mostrarGuardado("Guardando…");
-    clearTimeout(temporizador);
-    temporizador = setTimeout(guardar, 800);
+function hayCambios() {
+    return firma(mapaDeClasificacion()) !== firmaGuardada;
+}
+
+function pintarGuardar() {
+    const boton = document.getElementById("boton-guardar");
+    cuerpo.classList.toggle("con-cambios", hayCambios());
+    boton.disabled = guardando || !hayCambios();
+    boton.textContent = guardando ? "Guardando…" : "Guardar";
+}
+
+// Después de cada cambio en la clasificación.
+function marcarCambios() {
+    pintarGuardar();
+    mostrarGuardado(hayCambios() ? "Sin guardar" : "");
+}
+
+// "Guardado" se muestra un rato y se va; un error se queda.
+// El motivo de una falla queda al pasar el puntero y en la consola (F12):
+// al estudiante no le sirve el mensaje de Google, pero a quien lo revisa sí.
+function mostrarGuardado(texto, falla, motivo) {
+    const aviso = document.getElementById("guardado");
+    aviso.textContent = texto;
+    aviso.title = motivo || "";
+    aviso.classList.toggle("falla", !!falla);
+    aviso.classList.remove("apagado");
+    if (motivo) console.error("No se pudo guardar:", motivo);
+
+    clearTimeout(apagarGuardado);
+    if (texto === "Guardado") {
+        apagarGuardado = setTimeout(function () { aviso.classList.add("apagado"); }, 2200);
+    }
 }
 
 function guardar() {
+    if (guardando || !hayCambios()) return;
+
+    const mapa = mapaDeClasificacion();
+    const enviada = firma(mapa);
+
+    // Si se siguió cambiando mientras viajaba, queda "Sin guardar".
+    const alGuardar = function () {
+        firmaGuardada = enviada;
+        guardando = false;
+        pintarGuardar();
+        mostrarGuardado(hayCambios() ? "Sin guardar" : "Guardado");
+    };
+    const alFallar = function (motivo) {
+        guardando = false;
+        pintarGuardar();
+        mostrarGuardado("No se pudo guardar", true, motivo);
+    };
+
+    // Vista de ejemplo: no hay servidor al que mandar nada.
+    if (!EN_APPS_SCRIPT) { alGuardar(); return; }
+
+    guardando = true;
+    pintarGuardar();
+    mostrarGuardado("");
+
     google.script.run
         .withSuccessHandler(function (respuesta) {
-            if (respuesta && respuesta.exito) mostrarGuardado("Guardado");
-            else mostrarGuardado("No se pudo guardar", true);
+            if (respuesta && respuesta.exito) alGuardar();
+            else alFallar((respuesta && respuesta.mensaje) || "sin respuesta del servidor");
         })
-        .withFailureHandler(function () {
-            mostrarGuardado("No se pudo guardar", true);
+        .withFailureHandler(function (error) {
+            alFallar((error && error.message) || String(error));
         })
-        .guardarClasificacion(mapaDeClasificacion());
+        .guardarClasificacion(mapa);
 }
 
-// Si se cierra la pestaña con un guardado pendiente, se manda ya.
-window.addEventListener("pagehide", function () {
-    if (temporizador && EN_APPS_SCRIPT) { clearTimeout(temporizador); guardar(); }
+// Salir con cambios sin guardar: el navegador pregunta antes.
+window.addEventListener("beforeunload", function (evento) {
+    if (!hayCambios()) return;
+    evento.preventDefault();
+    evento.returnValue = "";
 });
 
 /* =========================================================
-   5. Cambiar la clasificación
+   6. Cambiar la clasificación
    Todo cambio pasa por acá, para que la lista, los nodos y el
-   visor queden siempre al día.
+   visor queden siempre al día. "llegadas" son las fichas que entran
+   volando desde donde estaban o desde donde se soltaron.
    ========================================================= */
 function poner(o, clave) {
     if (o.categorias.indexOf(clave) !== -1) return;
@@ -884,16 +1449,16 @@ function quitar(o, clave) {
     alCambiar();
 }
 
-function alCambiar() {
-    actualizarMarcas();
-    dibujarOrbitas();
+function alCambiar(llegadas) {
+    actualizarMarcas(true);
+    dibujarOrbitas({ llegadas: llegadas || [] });
     actualizarPista();
     if (estado.visor) pintarAlternar();
-    programarGuardado();
+    marcarCambios();
 }
 
 /* =========================================================
-   6. Lista lateral
+   7. Lista lateral
    ========================================================= */
 function crearLista() {
     const contenedor = document.getElementById("cursos");
@@ -937,7 +1502,19 @@ function crearBloque(o) {
     const obras = document.createElement("div");
     obras.className = "curso-obras";
 
-    seccion.append(titulo, datos, obras);
+    const elegirTodos = document.createElement("button");
+    elegirTodos.type = "button";
+    elegirTodos.className = "curso-elegir";
+    elegirTodos.textContent = "Elegir todos";
+    elegirTodos.addEventListener("click", function () { alternarCurso(seccion); });
+
+    const textos = document.createElement("div");
+    textos.append(titulo, datos);
+    const cabeza = document.createElement("div");
+    cabeza.className = "curso-cabeza";
+    cabeza.append(textos, elegirTodos);
+
+    seccion.append(cabeza, obras);
     return { seccion: seccion, datos: datos, obras: obras, cuenta: 0 };
 }
 
@@ -950,35 +1527,69 @@ function crearMini(o) {
 
     const marcas = document.createElement("span");
     marcas.className = "marcas";
-    mini.appendChild(marcas);
+    mini.append(marcas, crearVisto(), crearAgrandar(function () {
+        abrirVisor(OBRAS, OBRAS.indexOf(o), { tipo: "lista" });
+    }));
 
     hacerArrastrable(mini, o, null);
-    mini.addEventListener("click", function () { abrirVisor(OBRAS, OBRAS.indexOf(o)); });
+    mini.addEventListener("click", function () { elegir(o, null); });
     return mini;
 }
 
-// Una inicial por nodo en el que está el trabajo.
-function actualizarMarcas() {
+/* Una inicial por nodo en el que está el trabajo. Se comparan con las
+   que ya hay: la que llega salta, la que se va se encoge. Sin esto,
+   rehacerlas todas hacía parpadear las de los trabajos que no cambiaron. */
+function actualizarMarcas(animar_) {
     document.querySelectorAll(".mini").forEach(function (mini) {
         const o = obra(mini.dataset.obra);
         const marcas = mini.querySelector(".marcas");
-        marcas.innerHTML = "";
-        o.categorias.forEach(function (clave) {
-            const marca = document.createElement("span");
-            marca.textContent = categoria(clave).titulo.charAt(0);
-            marca.title = categoria(clave).titulo;
-            marcas.appendChild(marca);
+        const actuales = {};
+        marcas.querySelectorAll("span").forEach(function (marca) {
+            actuales[marca.dataset.clave] = marca;
+        });
+
+        // Se agregan en el orden de los nodos, no en el de llegada.
+        CATEGORIAS.forEach(function (c) {
+            const esta = o.categorias.indexOf(c.clave) !== -1;
+            const marca = actuales[c.clave];
+
+            if (esta && !marca) {
+                const nueva = document.createElement("span");
+                nueva.dataset.clave = c.clave;
+                nueva.textContent = c.titulo.charAt(0);
+                nueva.title = c.titulo;
+                const siguiente = Array.prototype.find.call(marcas.children, function (m) {
+                    return CATEGORIAS.findIndex(function (k) { return k.clave === m.dataset.clave; }) >
+                        CATEGORIAS.indexOf(c);
+                });
+                marcas.insertBefore(nueva, siguiente || null);
+                if (animar_) {
+                    animar(nueva, [{ transform: "scale(0)" }, { transform: "scale(1)" }],
+                        { duration: 450, easing: RESORTE, delay: 250 });
+                }
+
+            } else if (!esta && marca && !marca.dataset.saliendo) {
+                marca.dataset.saliendo = "1";
+                if (animar_) {
+                    animar(marca, [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(0)", opacity: 0 }],
+                        { duration: 250, easing: HUIDA, fill: "forwards" })
+                        .then(function () { marca.remove(); });
+                } else {
+                    marca.remove();
+                }
+            }
         });
     });
 }
 
-// Un div que se comporta como botón. No es un <button> porque Firefox no
-// deja arrastrar botones.
+// Un div que se comporta como casilla: tocarlo lo elige. No es un
+// <button> porque Firefox no deja arrastrar botones.
 function crearTocable(clase) {
     const elemento = document.createElement("div");
     elemento.className = clase;
     elemento.tabIndex = 0;
-    elemento.setAttribute("role", "button");
+    elemento.setAttribute("role", "checkbox");
+    elemento.setAttribute("aria-checked", "false");
     elemento.addEventListener("keydown", function (evento) {
         if (evento.key === "Enter" || evento.key === " ") {
             evento.preventDefault();
@@ -994,24 +1605,54 @@ function nombreDe(o) {
 }
 
 function alternarLista(abrir) {
+    const antes = estado.listaAbierta;
     estado.listaAbierta = typeof abrir === "boolean" ? abrir : !estado.listaAbierta;
+    if (antes === estado.listaAbierta) return;
+
     cuerpo.classList.toggle("con-lista", estado.listaAbierta);
 
     const menu = document.getElementById("menu");
     menu.setAttribute("aria-expanded", String(estado.listaAbierta));
     menu.setAttribute("aria-label", estado.listaAbierta ? "Ocultar mis trabajos" : "Mostrar mis trabajos");
 
-    disponerNodos();
+    disponerNodos(true);
     actualizarPista();
+    if (estado.listaAbierta) entrarLista();
+}
+
+/* Al abrirse, los bloques entran en cascada detrás del borde de la lista,
+   y las miniaturas de los primeros bloques un poco después. Más allá
+   de lo que se ve de entrada no vale la pena animar. */
+function entrarLista() {
+    const bloques = lista.querySelectorAll(".lista-cabeza, .curso");
+
+    bloques.forEach(function (bloque, i) {
+        if (i > 6) return;
+        const demora = 140 + i * 70;
+
+        animar(bloque, [
+            { opacity: 0, transform: "translateX(-28px)" },
+            { opacity: 1, transform: "none" }
+        ], { duration: 650, delay: demora, easing: SUAVE, fill: "backwards" });
+
+        bloque.querySelectorAll(".mini").forEach(function (mini, j) {
+            if (j > 18) return;
+            animar(mini, [
+                { opacity: 0, transform: "scale(0.8)" },
+                { opacity: 1, transform: "none" }
+            ], { duration: 500, delay: demora + 120 + j * 24, easing: RESORTE, fill: "backwards" });
+        });
+    });
 }
 
 /* =========================================================
-   7. Nodos
+   8. Nodos
    ========================================================= */
-const nodos = {};   // clave -> { raiz, capa, fichas: Map(id -> elemento) }
+const nodos = {};   // clave -> { raiz, aura, orbita, cuenta, fichas, giro, velocidad… }
+const GIROS = new WeakMap();   // ficha -> su animación de contragiro
 
 function crearNodos() {
-    CATEGORIAS.forEach(function (c) {
+    CATEGORIAS.forEach(function (c, i) {
         const raiz = document.createElement("div");
         raiz.className = "nodo";
         raiz.dataset.clave = c.clave;
@@ -1019,7 +1660,8 @@ function crearNodos() {
         const aura = document.createElement("div");
         aura.className = "aura";
 
-        const capa = document.createElement("div");
+        const orbita = document.createElement("div");
+        orbita.className = "orbita";
 
         const rotulo = document.createElement("button");
         rotulo.type = "button";
@@ -1042,139 +1684,348 @@ function crearNodos() {
             ampliar(estado.ampliado === c.clave ? null : c.clave);
         });
 
-        raiz.append(aura, rotulo, capa);
+        raiz.append(aura, rotulo, orbita);
         capaNodos.appendChild(raiz);
 
+        const nodo = {
+            raiz: raiz, aura: aura, orbita: orbita, cuenta: cuenta,
+            fichas: new Map(), movimiento: null,
+            // Uno gira a un lado y el siguiente al otro.
+            sentido: i % 2 === 0 ? 1 : -1,
+            giro: null, velocidad: 1, objetivo: 1, frenando: false, encima: false
+        };
+        nodos[c.clave] = nodo;
+
+        if (!QUIETO) {
+            nodo.giro = orbita.animate(
+                [{ rotate: "0deg" }, { rotate: (nodo.sentido * 360) + "deg" }],
+                { duration: VUELTA, iterations: Infinity });
+        }
+
+        // Con el puntero sobre una ficha la órbita se detiene, para poder
+        // apuntar. Sobre el nodo entero no: ampliado ocupa casi toda la
+        // pantalla y no giraría nunca.
+        orbita.addEventListener("pointerover", function (evento) {
+            if (!evento.target.closest(".ficha")) return;
+            nodo.encima = true;
+            actualizarGiros();
+        });
+        orbita.addEventListener("pointerout", function (evento) {
+            const hacia = evento.relatedTarget && evento.relatedTarget.closest &&
+                evento.relatedTarget.closest(".ficha");
+            if (hacia && orbita.contains(hacia)) return;
+            nodo.encima = false;
+            actualizarGiros();
+        });
+
         recibirArrastre(raiz, c.clave);
-        nodos[c.clave] = { raiz: raiz, capa: capa, cuenta: cuenta, fichas: new Map() };
     });
 }
 
-// Ubica los nodos según el espacio disponible. Se calcula con el ancho
-// final del escenario, no el de este momento: si la lista se está
-// abriendo, el escenario todavía no terminó de achicarse.
-function disponerNodos() {
-    const angosta = window.matchMedia("(max-width: 700px)").matches;
-    const W = document.documentElement.clientWidth - (estado.listaAbierta && !angosta ? lista.offsetWidth : 0);
-    const H = document.documentElement.clientHeight;
-    const cx = W / 2;
+/* ---- Órbita ----
+   La capa de fichas gira entera y cada ficha gira al revés lo mismo, así
+   se desplazan en círculo pero siguen derechas. Para detenerse no se
+   corta: la velocidad baja de a poco hasta cero, y vuelve igual. */
+function girarFicha(nodo, ficha) {
+    if (!nodo.giro) return;
+    const giro = ficha.animate(
+        [{ rotate: "0deg" }, { rotate: (-nodo.sentido * 360) + "deg" }],
+        { duration: VUELTA, iterations: Infinity });
+
+    GIROS.set(ficha, giro);
+
+    // En la misma fase que la capa: si no, la ficha quedaría torcida. Se
+    // espera a que arranque: si se crea con la órbita detenida (velocidad
+    // 0, por ejemplo al soltarla), el navegador la pone en cero al
+    // arrancar y se pierde la fase.
+    giro.ready.then(function () {
+        giro.currentTime = nodo.giro.currentTime;
+        giro.playbackRate = nodo.velocidad;
+    });
+}
+
+function velocidadDe(nodo) {
+    return (estado.visor || estado.arrastre || nodo.encima) ? 0 : 1;
+}
+
+function actualizarGiros() {
+    CATEGORIAS.forEach(function (c) {
+        const nodo = nodos[c.clave];
+        if (!nodo.giro) return;
+        nodo.objetivo = velocidadDe(nodo);
+        if (!nodo.frenando) frenar(nodo);
+    });
+}
+
+function frenar(nodo) {
+    nodo.frenando = true;
+
+    const paso = function () {
+        nodo.velocidad += (nodo.objetivo - nodo.velocidad) * 0.08;
+        if (Math.abs(nodo.objetivo - nodo.velocidad) < 0.004) nodo.velocidad = nodo.objetivo;
+
+        // Todas en el mismo cuadro, para que ninguna se desfase de la capa.
+        nodo.giro.playbackRate = nodo.velocidad;
+        nodo.fichas.forEach(function (ficha) {
+            const giro = GIROS.get(ficha);
+            if (giro) giro.playbackRate = nodo.velocidad;
+        });
+
+        if (nodo.velocidad !== nodo.objetivo) {
+            requestAnimationFrame(paso);
+            return;
+        }
+
+        // Al terminar se vuelven a alinear todas con la capa, por si alguna
+        // se corrió un poco en el camino.
+        nodo.frenando = false;
+        nodo.fichas.forEach(function (ficha) {
+            const giro = GIROS.get(ficha);
+            if (giro) giro.currentTime = nodo.giro.currentTime;
+        });
+    };
+    requestAnimationFrame(paso);
+}
+
+/* ---- Ubicación ----
+   Dónde va cada nodo en la vista general. Deja lugar para las fichas,
+   que se salen del círculo. */
+function posicionesGenerales(x0, W, H) {
+    const cx = x0 + W / 2;
     const cy = H / 2;
-    const claves = CATEGORIAS.map(function (c) { return c.clave; });
+
+    if (W / H < 0.8) {
+        // Pantalla vertical: los tres en columna.
+        const D = Math.min(W * 0.62, (H - 40) / 3.35);
+        return CATEGORIAS.map(function (c, i) { return { x: cx, y: cy + (i - 1) * D * 1.1, d: D }; });
+    }
+
+    // Triángulo: uno arriba al centro y dos abajo, como en el Figma.
+    const D = Math.min(W / 2.45, H / 2.2);
+    const lugares = [[0, -0.5], [-0.6, 0.5], [0.6, 0.5]];
+    return CATEGORIAS.map(function (c, i) {
+        const p = lugares[i] || [0, 0];
+        return { x: cx + p[0] * D, y: cy + p[1] * D, d: D };
+    });
+}
+
+/* Pone cada nodo en su lugar final de una vez y, si se pide, lo hace
+   llegar desde donde se lo ve ahora (FLIP): se mide, se mueve, y un
+   transform lo devuelve a su posición anterior para soltarlo hacia la
+   nueva. Así el navegador solo mueve una capa ya pintada; animando
+   left, top y tamaño recalculaba el nodo entero en cada cuadro.
+
+   Se mide desde lo que se ve y no desde el lugar anterior: si el nodo
+   venía a mitad de camino, sigue desde ahí sin saltar. */
+function disponerNodos(animado) {
+    const angosta = window.matchMedia("(max-width: 700px)").matches;
+    const x0 = estado.listaAbierta && !angosta ? lista.offsetWidth : 0;
+    const W = document.documentElement.clientWidth - x0;
+    const H = document.documentElement.clientHeight;
+    const generales = posicionesGenerales(x0, W, H);
 
     cuerpo.classList.toggle("ampliado", !!estado.ampliado);
 
-    claves.forEach(function (clave, i) {
-        let x, y, d, fuera = false, grande = false;
+    const destinos = CATEGORIAS.map(function (c, i) {
+        if (!estado.ampliado) return { x: generales[i].x, y: generales[i].y, d: generales[i].d };
 
-        if (estado.ampliado) {
-            // El ampliado al centro; los otros se recogen en él y se apagan.
-            const D = Math.min(W * 0.84, H * 0.8);
-            x = cx; y = cy + 10;
-            d = clave === estado.ampliado ? D : D * 0.3;
-            fuera = clave !== estado.ampliado;
-            grande = !fuera;
+        const D = Math.min(W * 0.84, H * 0.8);
+        const centro = { x: x0 + W / 2, y: H / 2 + 10 };
+        if (c.clave === estado.ampliado) return { x: centro.x, y: centro.y, d: D, grande: true };
 
-        } else if (W / H < 0.8) {
-            // Pantalla vertical: los tres en columna.
-            const D = Math.min(W * 0.62, (H - 40) / 3.35);
-            x = cx; y = cy + (i - 1) * D * 1.1;
-            d = D;
+        // Los otros se apartan hacia afuera, en la dirección en que
+        // estaban, y se desenfocan: el elegido los empuja al crecer.
+        const g = generales[i];
+        let dx = g.x - (x0 + W / 2), dy = g.y - H / 2;
+        const largo = Math.hypot(dx, dy) || 1;
+        dx /= largo; dy /= largo;
+        return { x: centro.x + dx * D * 0.8, y: centro.y + dy * D * 0.8, d: g.d * 0.75, fuera: true };
+    });
 
-        } else {
-            // Triángulo: uno arriba al centro y dos abajo, como en el Figma.
-            // Los factores dejan lugar para las fichas, que salen del círculo.
-            const D = Math.min(W / 2.45, H / 2.2);
-            const posiciones = [[0, -0.5], [-0.6, 0.5], [0.6, 0.5]];
-            const p = posiciones[i] || [0, 0];
-            x = cx + p[0] * D; y = cy + p[1] * D;
-            d = D;
-        }
+    CATEGORIAS.forEach(function (c, i) {
+        const nodo = nodos[c.clave];
+        const raiz = nodo.raiz;
+        const destino = destinos[i];
+        const antes = animado && !QUIETO ? raiz.getBoundingClientRect() : null;
 
-        const raiz = nodos[clave].raiz;
-        raiz.style.left = (x - d / 2) + "px";
-        raiz.style.top = (y - d / 2) + "px";
-        raiz.style.width = d + "px";
-        raiz.style.height = d + "px";
-        raiz.classList.toggle("fuera", fuera);
-        raiz.classList.toggle("grande", grande);
+        if (nodo.movimiento) nodo.movimiento.cancel();
+        nodo.movimiento = null;
+
+        const izquierda = destino.x - destino.d / 2;
+        const arriba = destino.y - destino.d / 2;
+        raiz.style.left = izquierda + "px";
+        raiz.style.top = arriba + "px";
+        raiz.style.width = destino.d + "px";
+        raiz.style.height = destino.d + "px";
+        raiz.classList.toggle("fuera", !!destino.fuera);
+        raiz.classList.toggle("grande", !!destino.grande);
         raiz.querySelector(".rotulo").setAttribute("aria-label",
-            categoria(clave).titulo + (grande ? ", volver a los tres nodos" : ", ampliar"));
+            c.titulo + (destino.grande ? ", volver a los tres nodos" : ", ampliar"));
+
+        if (!antes) return;
+        const dx = antes.left - izquierda;
+        const dy = antes.top - arriba;
+        const escala = antes.width / destino.d;
+        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(escala - 1) < 0.002) return;
+
+        nodo.movimiento = raiz.animate([
+            { transform: "translate(" + dx + "px, " + dy + "px) scale(" + escala + ")" },
+            { transform: "none" }
+        ], { duration: PASO, easing: SUAVE });
     });
 }
 
 function ampliar(clave) {
     estado.ampliado = clave;
-    disponerNodos();
+    disponerNodos(true);
+    actualizarPista();
 }
 
-// Un número entre 0 y 1 que depende solo del id: la órbita desordenada
-// queda igual cada vez que se abre la página.
-function azar(texto, sal) {
-    let h = 2166136261 ^ sal;
-    for (let i = 0; i < texto.length; i++) {
-        h ^= texto.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-    }
-    return ((h >>> 0) % 10000) / 10000;
+// Los tres nodos aparecen uno tras otro, creciendo desde su centro.
+function entrarNodos() {
+    CATEGORIAS.forEach(function (c, i) {
+        const nodo = nodos[c.clave];
+        const d = nodo.raiz.offsetWidth;
+        const encogido = 0.8;
+        const corrida = d * (1 - encogido) / 2;
+
+        if (QUIETO) return;
+        nodo.movimiento = nodo.raiz.animate([
+            { opacity: 0, transform: "translate(" + corrida + "px, " + corrida + "px) scale(" + encogido + ")" },
+            { opacity: 1, transform: "none" }
+        ], { duration: 1300, delay: 80 + i * 160, easing: SUAVE, fill: "backwards" });
+    });
 }
 
-/* Reparte las fichas en anillo alrededor del centro blanco. Todo en %
-   del nodo, por eso no hay que recalcular nada al ampliar. Las fichas
-   que ya estaban se reutilizan: así se deslizan a su nuevo lugar en vez
-   de aparecer de golpe. */
-function dibujarOrbitas() {
+/* ---- Fichas ----
+   Reparte las fichas en anillo alrededor del centro blanco, en % del
+   nodo. Lo que se reparte son los centros: todos sobre el mismo círculo
+   y a la misma distancia del de al lado, sea cual sea la forma de cada
+   ficha (cada una se centra en su punto con translate, en el CSS). Las que ya estaban se reutilizan y se deslizan a su nuevo lugar
+   para hacerle espacio a la que llega. Una ficha nueva sale del centro
+   del nodo, o viene volando desde donde estaba (opciones.llegadas).
+   La que se va se encoge y se desenfoca en su lugar. */
+function dibujarOrbitas(opciones) {
+    opciones = opciones || {};
+    const desdeElCentro = [];
+    const volando = [];
+
     CATEGORIAS.forEach(function (c) {
         const nodo = nodos[c.clave];
         const obras = obrasDelNodo(c.clave);
         const n = obras.length;
         const vigentes = new Set();
 
-        nodo.cuenta.textContent = n === 0 ? "vacío" : n + (n === 1 ? " trabajo" : " trabajos");
+        ponerCuenta(nodo, n, !opciones.inicial);
 
         // Lado mayor de cada ficha: grande con pocas, más chica con muchas.
+        // Es el mismo para todas; solo cambia la proporción.
         const lado = Math.max(7, Math.min(21, 340 / Math.max(n, 1)));
         const radio = 43;
+        const paso = (Math.PI * 2) / Math.max(n, 1);
 
         obras.forEach(function (o, i) {
             vigentes.add(o.id);
-            let ficha = nodo.fichas.get(o.id);
-            const nueva = !ficha;
 
-            if (nueva) {
+            // La primera arriba, y el resto a pasos iguales.
+            const angulo = -Math.PI / 2 + i * paso;
+            const x = (50 + Math.cos(angulo) * radio) + "%";
+            const y = (50 + Math.sin(angulo) * radio) + "%";
+
+            let ficha = nodo.fichas.get(o.id);
+
+            if (!ficha) {
                 ficha = crearFicha(o, c.clave);
-                ficha.classList.add("naciendo");
-                ficha.style.left = "50%";
-                ficha.style.top = "50%";
-                nodo.capa.appendChild(ficha);
+                ficha.dataset.lado = lado;
+                aplicarTamaño(ficha, o);
+                nodo.orbita.appendChild(ficha);
                 nodo.fichas.set(o.id, ficha);
+                girarFicha(nodo, ficha);
+
+                const llegada = (opciones.llegadas || []).find(function (l) {
+                    return l.id === o.id && l.clave === c.clave;
+                });
+                if (llegada && !QUIETO) {
+                    // Aparece ya en su lugar pero oculta: la trae la copia.
+                    ficha.classList.add("quieta", "esperando");
+                    ficha.style.left = x;
+                    ficha.style.top = y;
+                    volando.push({ ficha: ficha, llegada: llegada });
+                } else {
+                    ficha.classList.add("quieta", "naciendo");
+                    ficha.style.left = "50%";
+                    ficha.style.top = "50%";
+                    const demora = opciones.escalonar ? (opciones.demora || 0) + Math.min(i * 45, 900) : 0;
+                    desdeElCentro.push({ ficha: ficha, x: x, y: y, demora: demora });
+                }
+            } else {
+                ficha.dataset.lado = lado;
+                aplicarTamaño(ficha, o);
+                ficha.style.left = x;
+                ficha.style.top = y;
             }
 
-            const paso = (Math.PI * 2) / n;
-            const angulo = -Math.PI / 2 + (i + (azar(o.id, 1) - 0.5) * 0.35) * paso;
-            const r = radio + (azar(o.id, 2) - 0.5) * 5;
-
-            ficha.dataset.lado = lado * (0.85 + azar(o.id, 3) * 0.3);
             ficha.style.zIndex = String(i + 1);
-            aplicarTamaño(ficha, o);
-
-            const colocar = function () {
-                ficha.style.left = (50 + Math.cos(angulo) * r) + "%";
-                ficha.style.top = (50 + Math.sin(angulo) * r) + "%";
-                ficha.classList.remove("naciendo");
-            };
-
-            // Una ficha nueva parte del centro: se espera un cuadro para que
-            // el navegador registre ese punto de partida.
-            if (nueva) requestAnimationFrame(function () { requestAnimationFrame(colocar); });
-            else colocar();
         });
 
         nodo.fichas.forEach(function (ficha, id) {
             if (vigentes.has(id)) return;
             nodo.fichas.delete(id);
-            ficha.remove();
+            despedirFicha(ficha);
         });
     });
+
+    if (desdeElCentro.length === 0 && volando.length === 0) return;
+
+    // Una sola lectura de layout para todas: el navegador registra el
+    // punto de partida de las nuevas y el lugar final de las que vuelan.
+    void document.body.offsetWidth;
+
+    desdeElCentro.forEach(function (p) {
+        p.ficha.classList.remove("quieta");
+        p.ficha.style.transitionDelay = p.demora + "ms";
+        p.ficha.style.left = p.x;
+        p.ficha.style.top = p.y;
+        p.ficha.classList.remove("naciendo");
+
+        // La demora es solo para la entrada: después la ficha tiene que
+        // responder al instante cuando le hacen espacio a otra.
+        setTimeout(function () { p.ficha.style.transitionDelay = ""; }, p.demora + 950);
+    });
+
+    volando.forEach(function (v) {
+        const hasta = rectangulo(v.ficha.getBoundingClientRect());
+        v.ficha.classList.remove("quieta");
+
+        volar(v.llegada.fuente, v.llegada.desde, hasta, 750, v.llegada.retardo).then(function (copia) {
+            v.ficha.classList.remove("esperando");
+            desvanecer(copia, 350);
+        });
+    });
+}
+
+function despedirFicha(ficha) {
+    ficha.style.pointerEvents = "none";
+    const opacidad = getComputedStyle(ficha).opacity;
+    animar(ficha, [
+        { opacity: opacidad, scale: "1", filter: "blur(0)" },
+        { opacity: 0, scale: "0.4", filter: "blur(6px)" }
+    ], { duration: 420, easing: HUIDA, fill: "forwards" })
+        .then(function () { ficha.remove(); });
+}
+
+// La cuenta del rótulo cambia con un pequeño salto, para que se note.
+function ponerCuenta(nodo, n, animado) {
+    const texto = n === 0 ? "vacío" : n + (n === 1 ? " trabajo" : " trabajos");
+    if (nodo.cuenta.textContent === texto) return;
+    nodo.cuenta.textContent = texto;
+
+    if (animado) {
+        animar(nodo.cuenta, [
+            { opacity: 0, transform: "translateY(6px)" },
+            { opacity: 1, transform: "none" }
+        ], { duration: 450, delay: 200, easing: SUAVE, fill: "backwards" });
+    }
 }
 
 // Horizontal o vertical según la imagen. Mientras no carga, 4:3.
@@ -1201,38 +2052,119 @@ function crearFicha(o, clave) {
     ficha.setAttribute("aria-label", nombreDe(o));
 
     contenidoDe(o, 600).forEach(function (parte) { ficha.appendChild(parte); });
+    ficha.append(crearVisto(), crearAgrandar(function () {
+        const obras = obrasDelNodo(clave);
+        abrirVisor(obras, obras.indexOf(o), { tipo: "nodo", clave: clave });
+    }));
+    if (estado.seleccion.has(o.id)) {
+        ficha.classList.add("elegida");
+        ficha.setAttribute("aria-checked", "true");
+    }
 
     hacerArrastrable(ficha, o, clave);
     ficha.addEventListener("click", function (evento) {
         evento.stopPropagation();
-        const obras = obrasDelNodo(clave);
-        abrirVisor(obras, obras.indexOf(o));
+        elegir(o, clave);
     });
     return ficha;
 }
 
+// Un anillo que se abre desde el nodo y el halo que late: lo soltado entró.
+function ondaEn(nodo) {
+    if (QUIETO) return;
+    const onda = document.createElement("div");
+    onda.className = "onda";
+    nodo.raiz.appendChild(onda);
+    animar(onda, [
+        { transform: "scale(0.5)", opacity: 0.6 },
+        { transform: "scale(1.2)", opacity: 0 }
+    ], { duration: 1000, easing: SUAVE }).then(function () { onda.remove(); });
+
+    animar(nodo.aura, [
+        { transform: "scale(1.12)" },
+        { transform: "scale(1)" }
+    ], { duration: 800, easing: RESORTE });
+}
+
 /* =========================================================
-   8. Arrastrar
+   9. Arrastrar
    De la lista a un nodo: el trabajo entra al nodo.
    De un nodo a otro: se mueve.
    De un nodo a cualquier otro lado: sale del nodo.
+   Si lo que se arrastra está elegido junto con otros, se lleva
+   a todo el grupo.
    ========================================================= */
 function hacerArrastrable(elemento, o, desde) {
     elemento.draggable = true;
 
     elemento.addEventListener("dragstart", function (evento) {
-        estado.arrastre = { id: o.id, desde: desde, recibido: false };
+        const r = elemento.getBoundingClientRect();
+        estado.arrastre = {
+            id: o.id, desde: desde, recibido: false, elemento: elemento,
+            // Dónde se tomó: para que la copia salga de donde el puntero
+            // soltó la imagen de arrastre, no de su esquina.
+            agarre: { x: evento.clientX - r.left, y: evento.clientY - r.top },
+            ancho: r.width, alto: r.height,
+            grupo: estado.seleccion.has(o.id) && estado.seleccion.size > 1
+        };
         evento.dataTransfer.effectAllowed = "move";
         // Firefox no arrastra si no hay datos.
         evento.dataTransfer.setData("text/plain", o.id);
-        elemento.classList.add("arrastrando");
+
+        if (estado.arrastre.grupo) ponerImagenDePila(evento, elemento, estado.arrastre.agarre);
+
+        // Un cuadro después: si se agrega antes, la imagen de arrastre que
+        // captura el navegador sale ya transparente.
+        requestAnimationFrame(function () {
+            elemento.classList.add("arrastrando");
+            if (estado.arrastre && estado.arrastre.grupo) {
+                document.querySelectorAll(".elegida").forEach(function (el) { el.classList.add("arrastrando"); });
+            }
+        });
+        cuerpo.classList.add("arrastrando");
+        actualizarGiros();
     });
 
     elemento.addEventListener("dragend", function () {
-        elemento.classList.remove("arrastrando");
+        document.querySelectorAll(".mini.arrastrando, .ficha.arrastrando").forEach(function (el) {
+            el.classList.remove("arrastrando");
+        });
+        cuerpo.classList.remove("arrastrando");
         estado.arrastre = null;
         document.querySelectorAll(".nodo.sobre").forEach(function (n) { n.classList.remove("sobre"); });
+        actualizarGiros();
     });
+}
+
+// Al arrastrar varios, el puntero lleva el trabajo tomado con la
+// cantidad encima. El navegador saca una foto del elemento en el momento:
+// después ya se puede quitar.
+function ponerImagenDePila(evento, elemento, agarre) {
+    if (!evento.dataTransfer.setDragImage) return;
+    const r = elemento.getBoundingClientRect();
+    const pila = elemento.cloneNode(true);
+    pila.removeAttribute("style");
+    pila.classList.remove("elegida", "arrastrando");
+    pila.classList.add("pila");
+    pila.style.width = r.width + "px";
+    pila.style.height = r.height + "px";
+
+    const numero = document.createElement("span");
+    numero.className = "pila-numero";
+    numero.textContent = String(estado.seleccion.size);
+    pila.appendChild(numero);
+
+    document.body.appendChild(pila);
+    evento.dataTransfer.setDragImage(pila, agarre.x, agarre.y);
+    setTimeout(function () { pila.remove(); }, 0);
+}
+
+// Dónde quedó la imagen de arrastre al soltar.
+function rectDeSoltado(arrastre, evento) {
+    return {
+        left: evento.clientX - arrastre.agarre.x, top: evento.clientY - arrastre.agarre.y,
+        width: arrastre.ancho, height: arrastre.alto
+    };
 }
 
 function recibirArrastre(raiz, clave) {
@@ -1266,11 +2198,32 @@ function recibirArrastre(raiz, clave) {
         if (!arrastre) return;
         arrastre.recibido = true;
 
+        if (arrastre.grupo) {
+            mandarSeleccion(clave, {
+                moverDesde: arrastre.desde,
+                soltado: { id: arrastre.id, rect: rectDeSoltado(arrastre, evento) }
+            });
+            return;
+        }
+
         const o = obra(arrastre.id);
         if (arrastre.desde === clave) return;   // soltada en su mismo nodo
+
+        // Ya estaba en este nodo (viene de la lista): solo se avisa.
+        if (o.categorias.indexOf(clave) !== -1 && !arrastre.desde) {
+            ondaEn(nodos[clave]);
+            return;
+        }
+
         if (arrastre.desde) o.categorias.splice(o.categorias.indexOf(arrastre.desde), 1);
         if (o.categorias.indexOf(clave) === -1) o.categorias.push(clave);
-        alCambiar();
+
+        ondaEn(nodos[clave]);
+        alCambiar([{
+            id: o.id, clave: clave,
+            fuente: arrastre.elemento,
+            desde: rectDeSoltado(arrastre, evento)
+        }]);
     });
 }
 
@@ -1283,43 +2236,388 @@ document.addEventListener("drop", function (evento) {
     const arrastre = estado.arrastre;
     if (!arrastre || arrastre.recibido || !arrastre.desde) return;
     evento.preventDefault();
-    quitar(obra(arrastre.id), arrastre.desde);
+    esfumar(arrastre.elemento, rectDeSoltado(arrastre, evento));
+
+    if (!arrastre.grupo) {
+        quitar(obra(arrastre.id), arrastre.desde);
+        return;
+    }
+
+    // En grupo salen del nodo los que se eligieron ahí; los que venían de
+    // la lista no estaban en él.
+    estado.seleccion.forEach(function (origen, id) {
+        const o = obra(id);
+        const i = o ? o.categorias.indexOf(arrastre.desde) : -1;
+        if (origen === arrastre.desde && i !== -1) o.categorias.splice(i, 1);
+    });
+    soltarSeleccion();
+    alCambiar();
 });
 
 /* =========================================================
-   9. Visor
+   9b. Elegir varios
+   Tocar un trabajo lo elige o lo suelta. Lo elegido se manda
+   de una vez desde la barra de abajo, o arrastrando cualquiera
+   de ellos. Se recuerda dónde se eligió cada uno: "Sacar de su
+   nodo" saca solo los que se eligieron dentro de un nodo.
+   ========================================================= */
+function crearVisto() {
+    const visto = document.createElement("span");
+    visto.className = "visto";
+    visto.setAttribute("aria-hidden", "true");
+    visto.textContent = "✓";
+    return visto;
+}
+
+// El botón de la esquina: lo único que abre el visor.
+function crearAgrandar(alAbrir) {
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.className = "agrandar";
+    boton.title = "Ver en grande";
+    boton.setAttribute("aria-label", "Ver en grande");
+    boton.draggable = false;
+    boton.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9"/></svg>';
+
+    boton.addEventListener("click", function (evento) {
+        evento.stopPropagation();
+        alAbrir();
+    });
+    // Enter sobre el botón no tiene que llegar a la casilla, que lo
+    // tomaría como "elegir".
+    boton.addEventListener("keydown", function (evento) { evento.stopPropagation(); });
+    return boton;
+}
+
+function elegir(o, origen) {
+    if (estado.seleccion.has(o.id)) estado.seleccion.delete(o.id);
+    else estado.seleccion.set(o.id, origen);
+    pintarSeleccion();
+}
+
+function soltarSeleccion() {
+    if (estado.seleccion.size === 0) return;
+    estado.seleccion.clear();
+    pintarSeleccion();
+}
+
+// "Elegir todos" de un curso; si ya estaban todos, los suelta. Se eligen
+// en cascada, de izquierda a derecha.
+function alternarCurso(seccion) {
+    const minis = Array.prototype.slice.call(seccion.querySelectorAll(".mini"));
+    const todos = minis.every(function (m) { return estado.seleccion.has(m.dataset.obra); });
+
+    minis.forEach(function (mini, i) {
+        if (todos) estado.seleccion.delete(mini.dataset.obra);
+        else if (!estado.seleccion.has(mini.dataset.obra)) estado.seleccion.set(mini.dataset.obra, null);
+        if (!QUIETO) {
+            mini.style.transitionDelay = (i * 30) + "ms";
+            setTimeout(function () { mini.style.transitionDelay = ""; }, i * 30 + 500);
+        }
+    });
+    pintarSeleccion();
+}
+
+// Los elegidos que se eligieron dentro de un nodo y siguen en él.
+function elegidosEnNodos() {
+    const pares = [];
+    estado.seleccion.forEach(function (origen, id) {
+        const o = obra(id);
+        if (origen && o && o.categorias.indexOf(origen) !== -1) pares.push({ o: o, clave: origen });
+    });
+    return pares;
+}
+
+// Lo que se ve en pantalla de un trabajo elegido: la ficha del nodo
+// donde se eligió, o si no su miniatura en la lista.
+function elementoElegido(id, origen) {
+    const enNodo = origen && nodos[origen].fichas.get(id);
+    return enNodo || document.querySelector('.mini[data-obra="' + CSS.escape(id) + '"]');
+}
+
+function pintarSeleccion() {
+    document.querySelectorAll(".mini, .ficha").forEach(function (el) {
+        const elegida = estado.seleccion.has(el.dataset.obra);
+        el.classList.toggle("elegida", elegida);
+        el.setAttribute("aria-checked", String(elegida));
+    });
+
+    document.querySelectorAll(".curso").forEach(function (seccion) {
+        const minis = Array.prototype.slice.call(seccion.querySelectorAll(".mini"));
+        const todos = minis.length > 0 && minis.every(function (m) { return estado.seleccion.has(m.dataset.obra); });
+        seccion.querySelector(".curso-elegir").textContent = todos ? "Soltar todos" : "Elegir todos";
+    });
+
+    const n = estado.seleccion.size;
+    cuerpo.classList.toggle("con-seleccion", n > 0);
+    if (n === 0) return;
+
+    const cuenta = document.getElementById("lote-cuenta");
+    const texto = n === 1 ? "1 elegido" : n + " elegidos";
+    if (cuenta.textContent !== texto) {
+        cuenta.textContent = texto;
+        animar(cuenta, [{ transform: "scale(1.18)" }, { transform: "none" }], { duration: 420, easing: RESORTE });
+    }
+    document.getElementById("lote-sacar").hidden = elegidosEnNodos().length === 0;
+}
+
+/* Manda lo elegido a un nodo. Cada trabajo vuela desde donde está, uno
+   tras otro. Si el nodo está apartado porque hay otro ampliado, primero
+   se vuelve a los tres, para que se vea llegar.
+   opciones.moverDesde: al arrastrar el grupo desde una órbita, los que
+   se eligieron en ese nodo salen de él (igual que al arrastrar uno solo).
+   opciones.soltado: el que se arrastró sale de donde se soltó. */
+function mandarSeleccion(clave, opciones) {
+    opciones = opciones || {};
+    if (estado.seleccion.size === 0) return;
+
+    if (estado.ampliado && estado.ampliado !== clave) {
+        ampliar(null);
+        setTimeout(function () { mandarSeleccion(clave, opciones); }, QUIETO ? 0 : PASO);
+        return;
+    }
+
+    const llegadas = [];
+    estado.seleccion.forEach(function (origen, id) {
+        const o = obra(id);
+        if (!o) return;
+
+        const moviendo = opciones.moverDesde && origen === opciones.moverDesde && origen !== clave;
+        const fuente = elementoElegido(id, origen);
+        if (moviendo) {
+            const i = o.categorias.indexOf(origen);
+            if (i !== -1) o.categorias.splice(i, 1);
+        }
+        if (o.categorias.indexOf(clave) !== -1) return;   // ya estaba ahí
+        o.categorias.push(clave);
+
+        let desde = null;
+        if (opciones.soltado && opciones.soltado.id === id) desde = opciones.soltado.rect;
+        else if (fuente && estaEnPantalla(fuente.getBoundingClientRect())) desde = rectangulo(fuente.getBoundingClientRect());
+
+        if (fuente && desde) {
+            llegadas.push({ id: id, clave: clave, fuente: fuente, desde: desde, retardo: Math.min(llegadas.length * 70, 700) });
+        }
+    });
+
+    ondaEn(nodos[clave]);
+    estado.seleccion.clear();
+    pintarSeleccion();
+    alCambiar(llegadas);
+}
+
+function sacarSeleccion() {
+    elegidosEnNodos().forEach(function (par) {
+        par.o.categorias.splice(par.o.categorias.indexOf(par.clave), 1);
+    });
+    soltarSeleccion();
+    alCambiar();
+}
+
+// Un botón por nodo en la barra. Al pasar por encima, su círculo se
+// ilumina: se ve a dónde van a ir antes de mandarlos.
+function crearLote() {
+    const destinos = document.getElementById("lote-destinos");
+
+    CATEGORIAS.forEach(function (c) {
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.className = "destino";
+        boton.textContent = c.titulo;
+
+        const iluminar = function () { nodos[c.clave].raiz.classList.add("sobre"); };
+        const apagar = function () { nodos[c.clave].raiz.classList.remove("sobre"); };
+        boton.addEventListener("pointerenter", iluminar);
+        boton.addEventListener("focus", iluminar);
+        boton.addEventListener("pointerleave", apagar);
+        boton.addEventListener("blur", apagar);
+        boton.addEventListener("click", function () {
+            apagar();
+            mandarSeleccion(c.clave);
+        });
+        destinos.appendChild(boton);
+    });
+
+    document.getElementById("lote-sacar").addEventListener("click", sacarSeleccion);
+    document.getElementById("lote-cancelar").addEventListener("click", soltarSeleccion);
+}
+
+/* =========================================================
+   10. Visor
+   Se abre desde la miniatura: una copia viaja de su lugar al
+   centro y crece hasta el tamaño final, y al cerrar vuelve. En
+   su lugar queda un hueco mientras el visor está abierto.
    ========================================================= */
 const visor = document.getElementById("visor");
-let foco = null;   // a dónde vuelve el foco al cerrar
+const medio = document.getElementById("visor-medio");
+let foco = null;           // a dónde vuelve el foco al cerrar
+let turnoDelVisor = 0;     // para descartar animaciones que quedaron atrás
 
-function abrirVisor(obras, i) {
-    if (!estado.visor) foco = document.activeElement;
+function obraDelVisor() {
+    return estado.visor ? estado.visor.lista[estado.visor.i] : null;
+}
+
+// La miniatura de la que salió el trabajo que se está mirando, si sigue
+// estando: al navegar con las flechas cambia, y un trabajo sacado de su
+// nodo con el visor abierto ya no tiene ficha a la que volver.
+function elementoDeOrigen(o, origen) {
+    if (!o || !origen) return null;
+    if (origen.tipo === "nodo") return nodos[origen.clave].fichas.get(o.id) || null;
+    return document.querySelector('.mini[data-obra="' + CSS.escape(o.id) + '"]');
+}
+
+// Dónde va a quedar lo que se muestra. Para una imagen es el rectángulo
+// que ocupa ajustada a la caja, que se calcula antes de que cargue.
+function rectDelMedio(o) {
+    const contenido = medio.firstElementChild;
+    if (!contenido) return null;
+    if (contenido.tagName !== "IMG") return rectangulo(contenido.getBoundingClientRect());
+
+    const caja = medio.getBoundingClientRect();
+    const proporcion = o.proporcion || 4 / 3;
+    let ancho = caja.width, alto = caja.width / proporcion;
+    if (alto > caja.height) { alto = caja.height; ancho = alto * proporcion; }
+    return {
+        left: caja.left + (caja.width - ancho) / 2, top: caja.top + (caja.height - alto) / 2,
+        width: ancho, height: alto
+    };
+}
+
+function abrirVisor(obras, i, origen) {
+    if (estado.visor) return;
+    foco = document.activeElement;
+    turnoDelVisor++;
+
     // Copia: si la clasificación cambia con el visor abierto, las flechas
     // siguen recorriendo la lista con la que se abrió.
-    estado.visor = { lista: obras.slice(), i: i };
+    estado.visor = { lista: obras.slice(), i: i, origen: origen };
+    actualizarGiros();
     pintarVisor();
+
+    const o = obraDelVisor();
+    const fuente = elementoDeOrigen(o, origen);
+    const desde = fuente ? fuente.getBoundingClientRect() : null;
+
     visor.classList.add("abierto");
-    document.getElementById("cerrar").focus();
+    document.getElementById("cerrar").focus({ preventScroll: true });
+    entrarDatos(120);
+
+    if (!fuente) return;
+    fuente.classList.add("en-visor");
+
+    const hasta = rectDelMedio(o);
+    if (QUIETO || !hasta || !estaEnPantalla(desde)) return;
+
+    // De golpe: el visor ya se está haciendo visible, y un fundido dejaría
+    // ver el destino antes de que llegue la copia.
+    medio.classList.add("quieta", "oculto");
+    void medio.offsetWidth;
+    medio.classList.remove("quieta");
+
+    const turno = turnoDelVisor;
+    volar(fuente, rectangulo(desde), hasta, 650).then(function (copia) {
+        if (turno !== turnoDelVisor) { if (copia) copia.remove(); return; }
+        revelarMedio(copia);
+    });
+}
+
+// La copia chica llegó al centro: el trabajo en grande aparece encima
+// cuando está listo, y recién entonces la copia se va.
+function revelarMedio(copia) {
+    const imagen = medio.querySelector("img");
+    const listo = function () {
+        medio.classList.remove("oculto");
+        setTimeout(function () { desvanecer(copia, 250); }, 200);
+    };
+
+    if (!imagen || imagen.complete) { listo(); return; }
+
+    let hecho = false;
+    const una = function () { if (!hecho) { hecho = true; listo(); } };
+    imagen.addEventListener("load", una);
+    imagen.addEventListener("error", una);
+    setTimeout(una, 1500);   // si Drive tarda, no se espera para siempre
 }
 
 function cerrarVisor() {
+    const v = estado.visor;
+    if (!v) return;
+    turnoDelVisor++;
+
+    const o = obraDelVisor();
+    const destino = elementoDeOrigen(o, v.origen);
+    const desde = rectDelMedio(o);
+
     estado.visor = null;
     visor.classList.remove("abierto");
-    document.getElementById("visor-medio").innerHTML = "";   // corta el video
-    if (foco && document.body.contains(foco)) foco.focus();
+    medio.classList.add("oculto");
+    actualizarGiros();
+
+    const turno = turnoDelVisor;
+    const terminar = function () {
+        document.querySelectorAll(".en-visor").forEach(function (el) { destapar(el, "en-visor"); });
+        if (turno === turnoDelVisor) medio.innerHTML = "";   // corta el video
+    };
+
+    const hasta = destino ? destino.getBoundingClientRect() : null;
+    if (!QUIETO && destino && desde && estaEnPantalla(hasta)) {
+        volar(destino, desde, rectangulo(hasta), 560).then(function (copia) {
+            terminar();
+            if (copia) copia.remove();
+        });
+    } else {
+        setTimeout(terminar, 350);
+    }
+
+    if (foco && document.body.contains(foco)) foco.focus({ preventScroll: true });
 }
 
+/* Con las flechas, lo que se mira se va hacia un lado y lo siguiente
+   entra desde el otro, en el sentido en que se avanza. */
 function moverVisor(paso) {
     const v = estado.visor;
     if (!v || v.lista.length < 2) return;
+
+    const turno = ++turnoDelVisor;
+    const anterior = elementoDeOrigen(obraDelVisor(), v.origen);
     v.i = (v.i + paso + v.lista.length) % v.lista.length;
-    pintarVisor();
+
+    animar(medio, [
+        { opacity: 1, transform: "none" },
+        { opacity: 0, transform: "translateX(" + (-paso * 48) + "px)" }
+    ], { duration: 170, easing: HUIDA, fill: "forwards" }).then(function () {
+        if (turno !== turnoDelVisor) return;
+
+        medio.classList.remove("oculto");   // por si se navegó durante el viaje de apertura
+        if (anterior) destapar(anterior, "en-visor");
+        const actual = elementoDeOrigen(obraDelVisor(), v.origen);
+        if (actual) actual.classList.add("en-visor");
+
+        pintarVisor();
+        medio.getAnimations().forEach(function (a) { a.cancel(); });
+        animar(medio, [
+            { opacity: 0, transform: "translateX(" + (paso * 48) + "px)" },
+            { opacity: 1, transform: "none" }
+        ], { duration: 480, easing: SUAVE });
+        entrarDatos(0);
+    });
+}
+
+// Los datos de la derecha entran uno tras otro.
+function entrarDatos(demora) {
+    document.querySelectorAll("#visor-datos > *").forEach(function (parte, i) {
+        animar(parte, [
+            { opacity: 0, transform: "translateY(10px)" },
+            { opacity: 1, transform: "none" }
+        ], { duration: 520, delay: demora + i * 50, easing: SUAVE, fill: "backwards" });
+    });
 }
 
 function pintarVisor() {
     const v = estado.visor;
-    const o = v.lista[v.i];
-    const medio = document.getElementById("visor-medio");
+    const o = obraDelVisor();
     medio.innerHTML = "";
 
     if (o.tipo === "texto") {
@@ -1332,7 +2630,6 @@ function pintarVisor() {
         const marco = document.createElement("iframe");
         marco.src = urlReproductor(o);
         marco.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
-        marco.allowFullscreen = true;
         marco.title = nombreDe(o);
         medio.appendChild(marco);
 
@@ -1361,25 +2658,32 @@ function pintarVisor() {
     pintarAlternar();
 }
 
-// Un botón por nodo: prende y apaga el trabajo en ese nodo.
+// Un botón por nodo: prende y apaga el trabajo en ese nodo. Los botones
+// se crean una vez y después solo cambian de estado, para que el halo
+// pueda crecer o achicarse en vez de aparecer ya cambiado.
 function pintarAlternar() {
-    const o = estado.visor.lista[estado.visor.i];
+    const o = obraDelVisor();
     const caja = document.getElementById("visor-alternar");
-    caja.innerHTML = "";
 
-    CATEGORIAS.forEach(function (c) {
-        const boton = document.createElement("button");
-        boton.type = "button";
-        boton.className = "alternar";
-        boton.textContent = c.titulo;
-        const esta = o.categorias.indexOf(c.clave) !== -1;
-        boton.setAttribute("aria-pressed", String(esta));
-        boton.addEventListener("click", function () {
-            if (o.categorias.indexOf(c.clave) !== -1) quitar(o, c.clave);
-            else poner(o, c.clave);
-            caja.querySelectorAll(".alternar")[CATEGORIAS.indexOf(c)].focus();
+    if (caja.children.length !== CATEGORIAS.length) {
+        caja.innerHTML = "";
+        CATEGORIAS.forEach(function (c) {
+            const boton = document.createElement("button");
+            boton.type = "button";
+            boton.className = "alternar";
+            boton.textContent = c.titulo;
+            boton.addEventListener("click", function () {
+                const actual = obraDelVisor();
+                if (!actual) return;
+                if (actual.categorias.indexOf(c.clave) !== -1) quitar(actual, c.clave);
+                else poner(actual, c.clave);
+            });
+            caja.appendChild(boton);
         });
-        caja.appendChild(boton);
+    }
+
+    CATEGORIAS.forEach(function (c, i) {
+        caja.children[i].setAttribute("aria-pressed", String(o.categorias.indexOf(c.clave) !== -1));
     });
 }
 
@@ -1389,13 +2693,18 @@ document.getElementById("siguiente").addEventListener("click", function () { mov
 
 // Tocar el fondo del visor lo cierra.
 visor.addEventListener("click", function (evento) {
-    if (evento.target === visor || evento.target.classList.contains("visor-medio")) cerrarVisor();
+    if (evento.target === visor || evento.target === medio) cerrarVisor();
 });
 
 /* =========================================================
-   10. Teclado, pista y arranque
+   11. Teclado, pista y arranque
    ========================================================= */
 document.addEventListener("keydown", function (evento) {
+    if ((evento.ctrlKey || evento.metaKey) && evento.key.toLowerCase() === "s") {
+        evento.preventDefault();
+        guardar();
+        return;
+    }
     if (estado.visor) {
         if (evento.key === "Escape") cerrarVisor();
         else if (evento.key === "ArrowLeft") moverVisor(-1);
@@ -1403,18 +2712,38 @@ document.addEventListener("keydown", function (evento) {
         return;
     }
     if (evento.key !== "Escape") return;
-    if (estado.ampliado) ampliar(null);
+    if (estado.seleccion.size > 0) soltarSeleccion();
+    else if (estado.ampliado) ampliar(null);
     else if (estado.listaAbierta) alternarLista(false);
 });
+
+// La pista cambia fundiéndose, no de golpe.
+let turnoDeLaPista = 0;
 
 function actualizarPista() {
     const pista = document.getElementById("pista");
     const hayClasificados = OBRAS.some(function (o) { return o.categorias.length > 0; });
+    let texto = "";
 
-    if (OBRAS.length === 0) pista.textContent = "";
-    else if (!estado.listaAbierta && !hayClasificados) pista.textContent = "Abre la lista ☰ y arrastra tus trabajos hacia un nodo.";
-    else if (estado.listaAbierta) pista.textContent = "Arrastra un trabajo a un nodo. Para sacarlo, arrástralo fuera del círculo.";
-    else pista.textContent = "Toca un nodo para verlo de cerca.";
+    if (OBRAS.length === 0) texto = "";
+    else if (estado.listaAbierta) texto = "Toca trabajos para elegirlos, o arrástralos a un nodo. ⤢ abre uno en grande.";
+    else if (!hayClasificados) texto = "Abre la lista ☰ y arrastra tus trabajos hacia un nodo.";
+    else if (estado.ampliado) texto = "Toca el centro o Esc para volver a los tres nodos.";
+    else texto = "Toca el centro de un nodo para verlo de cerca, o sus trabajos para elegirlos.";
+
+    if (pista.dataset.texto === texto) return;
+    pista.dataset.texto = texto;
+    const turno = ++turnoDeLaPista;
+
+    animar(pista, [{ opacity: 1 }, { opacity: 0 }], { duration: 180, fill: "forwards" }).then(function () {
+        if (turno !== turnoDeLaPista) return;
+        pista.textContent = texto;
+        pista.getAnimations().forEach(function (a) { a.cancel(); });
+        animar(pista, [
+            { opacity: 0, transform: "translateY(6px)" },
+            { opacity: 1, transform: "none" }
+        ], { duration: 500, easing: SUAVE });
+    });
 }
 
 function mostrarAviso(titulo, texto) {
@@ -1437,11 +2766,20 @@ function arrancar() {
     }
     document.getElementById("demo").hidden = EN_APPS_SCRIPT;
 
+    // Lo que llegó del servidor es lo guardado: de ahí se miden los cambios.
+    firmaGuardada = firma(mapaDeClasificacion());
+    document.getElementById("boton-guardar").addEventListener("click", guardar);
+
     crearLista();
     crearNodos();
-    disponerNodos();
-    dibujarOrbitas();
-    actualizarMarcas();
+    crearLote();
+    disponerNodos(false);
+
+    // La entrada: primero los tres círculos, uno tras otro; después las
+    // fichas salen de sus centros hacia la órbita.
+    entrarNodos();
+    dibujarOrbitas({ inicial: true, escalonar: true, demora: 650 });
+    actualizarMarcas(false);
     actualizarPista();
 
     document.getElementById("menu").addEventListener("click", function () { alternarLista(); });
@@ -1450,13 +2788,13 @@ function arrancar() {
     let espera = null;
     window.addEventListener("resize", function () {
         clearTimeout(espera);
-        espera = setTimeout(disponerNodos, 80);
+        espera = setTimeout(function () { disponerNodos(false); }, 80);
     });
 
-    // Sin nada clasificado todavía, la lista parte abierta: es lo primero
-    // que hay que usar.
+    // Sin nada clasificado todavía, la lista se abre sola: es lo primero
+    // que hay que usar. Espera a que los nodos terminen de aparecer.
     if (OBRAS.length > 0 && !OBRAS.some(function (o) { return o.categorias.length > 0; })) {
-        alternarLista(true);
+        setTimeout(function () { alternarLista(true); }, QUIETO ? 0 : 1500);
     }
 }
 

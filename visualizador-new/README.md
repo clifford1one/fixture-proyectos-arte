@@ -36,3 +36,18 @@ formato-codigo-nombre-numeroArchivo.extension
 - Para texto: texto-art1012-jaimito-11.txt
 - Para imagen: imagen-art1012-jaimito-11.webp
 - Para link de video: video-art1012-jaimito-11.txt
+
+## Cómo funciona el código
+
+Dos archivos, los mismos que existen en Apps Script:
+
+- `code.gs` (servidor): `doGet()` identifica al estudiante, lee sus filas de la planilla y su clasificación (pestaña `clasificacion`), y lo incrusta todo en la página como `DATOS`. `guardarClasificacion()` guarda una fila por estudiante con `{ idArchivo: ["forma", ...] }`.
+- `index.html` (navegador): marcado, estilo y script en un solo archivo. Abierto suelto, sin Apps Script, muestra datos de ejemplo.
+
+Regla central: los datos mandan. Todo cambio modifica `obra.categorias` y pasa por `alCambiar()`, que redibuja la lista y las órbitas y enciende el botón "Guardar". Nada se escribe en la planilla hasta apretarlo (o Ctrl+S).
+
+Dónde cambiar cosas:
+
+- Nodos (nombre y definición): `CATEGORIAS` en `code.gs`.
+- Colores y velocidad: variables `--` del `<style>` y `SUAVE`, `RESORTE`, `PASO`, `VUELTA` en el script.
+- Tamaño de las fichas en la órbita: `lado` y `radio` en `dibujarOrbitas()`.
