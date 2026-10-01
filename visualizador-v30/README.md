@@ -108,6 +108,10 @@ El botón «Paleta» cambia solo los colores: fondo, paneles, fichas, líneas y 
 - **Guardar:** el botón Guardar o `Ctrl + S`. El botón se enciende cuando hay cambios. Al lado aparece «Sin guardar», «Guardado» o «No se pudo guardar». Si falla, el motivo aparece al pasar el mouse sobre el aviso, y también en la consola del navegador (F12).
 - **Al cerrar la página:** si hay cambios sin guardar, el navegador pregunta antes de salir o recargar.
 - **Lo que se recupera al volver a abrir:** el tablero, la paleta y el lugar donde se estaba mirando.
+- **Respaldo en el navegador:** cada cambio, y también lo que se va escribiendo, se copia en el `localStorage` de este navegador. Si la página se cierra sola, se cae la conexión o se recarga sin guardar, al volver a abrirla aparece lo que había:
+  - Si la planilla sigue igual que cuando se hizo el respaldo, se recupera solo. Aparece un aviso con «Guardar ahora» y «Descartar», y `Ctrl + Z` vuelve a lo que estaba guardado.
+  - Si la planilla cambió desde entonces, por ejemplo porque se guardó desde otro computador, se pregunta: «Recuperarlos» o «Descartarlos».
+  - El respaldo se borra solo cuando lo que hay en pantalla ya está guardado en la planilla.
 
 ### Todos los atajos
 
@@ -141,9 +145,10 @@ El botón «Paleta» cambia solo los colores: fondo, paneles, fichas, líneas y 
 
 ### Guardado
 
-- **No hay guardado automático.** Hay que apretar Guardar. Lo que no se guarda se pierde al cerrar, aunque el navegador avisa antes de salir.
-- **Deshacer se pierde al recargar.** El historial guarda hasta 150 pasos. Cambiar la paleta no se deshace con `Ctrl + Z`.
-- **Dos pestañas abiertas:** si el mismo estudiante tiene el tablero abierto en dos pestañas, gana la última que guarde y lo de la otra se pierde.
+- **No hay guardado automático en la planilla.** Hay que apretar Guardar. Lo no guardado queda solo en el respaldo del navegador.
+- **El respaldo es local.** Vive solo en ese navegador y ese computador: no aparece en otro equipo, ni en otro navegador, ni en una ventana privada. Se pierde si se borran los datos del navegador. Si el navegador no permite almacenamiento, la página funciona igual, pero sin respaldo.
+- **Deshacer se pierde al recargar.** El historial guarda hasta 150 pasos, pero no se respalda. Al recuperar un respaldo queda un solo paso atrás: volver a lo guardado en la planilla. Cambiar la paleta no se deshace con `Ctrl + Z`.
+- **Dos pestañas abiertas:** si el mismo estudiante tiene el tablero abierto en dos pestañas del mismo navegador, comparten un solo respaldo: la última que cambia algo pisa lo de la otra. En la planilla, gana la última que guarde.
 - **Tamaño máximo:** el tablero se guarda en una sola celda de Sheets, que admite hasta 50.000 caracteres. Alcanza para unos cuantos cientos de elementos. Si se pasa, aparece «No se pudo guardar» con el motivo.
 - **Topes de lo que acepta el servidor.** Lo que se pasa de estos números se descarta al guardar:
 
@@ -155,7 +160,7 @@ El botón «Paleta» cambia solo los colores: fondo, paneles, fichas, líneas y 
 | Largo de un texto | 2.000 caracteres |
 | Largo del texto de una línea | 300 caracteres |
 
-- **La paleta en la vista de ejemplo:** el navegador la recuerda, pero el tablero se reinicia en cada recarga, porque ahí no hay guardado.
+- **Sin planilla:** en la vista de ejemplo, o con `GUARDAR_TABLERO = false`, el respaldo del navegador es el único guardado. Se recupera solo y sin aviso. Para volver a empezar hay que borrar los datos del sitio en el navegador.
 
 ### Imágenes y videos
 
@@ -233,10 +238,12 @@ tablero = {
 - **Referencias.** Cada elemento se identifica con una referencia de texto: `o:` más el id de la obra, `t:` para un texto, `s:` para un sticker, `l:` para una línea y `n:` para un nodo.
 - **Cambios.** Cada acción cambia `tablero` y llama a `pintar()`, que redibuja a partir de los datos. Los elementos de la página se reutilizan, así que mover una ficha no recarga su imagen.
 - **Tablero infinito.** Todo está dentro de un div, `mundo`, que se desplaza y se escala con `transform` según `vista = {x, y, z}`. `aMundo()` convierte un punto de la pantalla en un punto del tablero.
-- **Gestos.** Al tocar, el `pointerdown` decide un solo gesto según lo que hay debajo y la herramienta elegida: mover, cambiar tamaño, conectar, caja de selección o desplazarse. Cada gesto tiene `mover()` y `soltar()`. Al soltar se llama a `confirmar()`, que hace tres cosas:
+- **Gestos.** Al tocar, el `pointerdown` decide un solo gesto según lo que hay debajo y la herramienta elegida: mover, cambiar tamaño, conectar, caja de selección o desplazarse. Cada gesto tiene `mover()` y `soltar()`. Al soltar se llama a `confirmar()`, que hace cuatro cosas:
   - guarda una foto del tablero para deshacer;
   - actualiza la lista;
-  - enciende el aviso «Sin guardar».
+  - enciende el aviso «Sin guardar»;
+  - copia el tablero al respaldo del navegador.
+- **Respaldo.** `respaldar()` escribe en `localStorage` el tablero, la paleta, la vista y la `base`: la versión guardada sobre la que se hizo el respaldo. Al abrir, `revisarRespaldo()` compara esa base con lo que llegó de la planilla. Si son iguales, recupera el respaldo solo; si no, pregunta.
 - **Líneas imantadas.** Las líneas no guardan coordenadas: solo qué unen. `geometria()` traza la recta entre los centros de los dos elementos y la recorta de borde a borde.
 - **Clasificación.** `nodoEn()` decide a qué nodo pertenece cada trabajo, según dónde cae su centro.
 - **Paletas.** Son bloques de variables CSS en `:root[data-tema="..."]`. `aplicarTema()` cambia el atributo y el navegador recolorea todo.
@@ -251,6 +258,7 @@ tablero = {
 | Orden de los cursos en la lista | `LINEAS_CURRICULARES` en `code.gs` |
 | Activar o desactivar el guardado | `GUARDAR_TABLERO` en `code.gs` |
 | Topes de lo que se guarda | `LIMITES` en `code.gs` |
+| Nombre del respaldo en el navegador | `CLAVE_RESPALDO` en el script. Cambiarlo hace que se ignoren los respaldos anteriores |
 | Colores de cada paleta | bloques `:root[data-tema=...]` al inicio del `<style>`, más sus muestras en `TEMAS` del script. Si se agrega una paleta, sumarla también a `TEMAS` en `code.gs` |
 | Colores de las estrellas | `ESTRELLAS` en el script. Si se agrega un color, sumarlo también a `COLORES_STICKER` en `code.gs` |
 | Tamaño de nodos, fichas y stickers nuevos | `NODO.diametro`, `ANCHO_FICHA`, `TAMANO_STICKER` |

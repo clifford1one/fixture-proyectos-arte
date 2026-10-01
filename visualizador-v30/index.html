@@ -789,6 +789,46 @@
   .estado-guardado.apagado { opacity: 0; }
   .estado-guardado.falla { color: var(--tinta); font-weight: 600; cursor: help; }
 
+  /* Aviso de lo recuperado del respaldo del navegador */
+  .respaldo {
+    position: fixed;
+    left: 50%;
+    top: 14px;
+    transform: translateX(-50%);
+    z-index: 8;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 12px;
+    max-width: calc(100vw - 32px);
+    padding: 8px 8px 8px 16px;
+    background: var(--papel);
+    border: 1px solid var(--borde);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    font-size: 13px;
+    color: var(--tinta-media);
+  }
+
+  .respaldo-botones { display: flex; gap: 4px; }
+
+  .respaldo button {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--tinta);
+    transition: background 0.15s;
+  }
+
+  .respaldo button:hover { background: var(--hover); }
+  .respaldo button.principal { background: var(--tinta); color: var(--fondo); }
+
+  @media (max-width: 700px) {
+    .respaldo { top: 66px; }
+  }
+
   .boton-redondo {
     height: 40px;
     padding: 0 18px;
@@ -1266,6 +1306,12 @@
   </div>
 
   <div class="paletas" id="paletas" role="group" aria-label="Paletas de colores" hidden></div>
+
+  <!-- Lo que quedó en el respaldo del navegador al abrir -->
+  <div class="respaldo" id="respaldo" role="status" hidden>
+    <span id="respaldo-texto"></span>
+    <span class="respaldo-botones" id="respaldo-botones"></span>
+  </div>
 
   <div class="ayuda" id="ayuda" hidden>
     <h2>Cómo se usa</h2>
@@ -1991,6 +2037,7 @@ function crearTexto(x) {
         const t = texto(x.id);
         if (t) t.texto = leerEditable(cuerpoTexto);
         pintar();
+        respaldarPronto();
     });
     cuerpoTexto.addEventListener("blur", function () { terminarEdicion(); });
     prepararEditable(cuerpoTexto);
@@ -2077,6 +2124,7 @@ function crearEtiqueta(id) {
     el.addEventListener("input", function () {
         const l = linea(id);
         if (l) l.texto = leerEditable(el);
+        respaldarPronto();
     });
     el.addEventListener("blur", function () { terminarEdicion(); });
     prepararEditable(el);
@@ -2165,6 +2213,7 @@ function alCambiar() {
     document.getElementById("deshacer").disabled = pasado.length === 0;
     document.getElementById("rehacer").disabled = futuro.length === 0;
     marcarCambios();
+    respaldar();
 }
 
 // La paleta no entra en la historia (deshacer no la cambia), pero sí en
@@ -2227,6 +2276,7 @@ function guardar() {
         guardando = false;
         pintarGuardar();
         mostrarGuardado(hayCambios() ? "Sin guardar" : "Guardado");
+        respaldar();   // ya está en la planilla: el respaldo sobra
     };
     const alFallar = function (motivo) {
         guardando = false;
@@ -2249,6 +2299,158 @@ function guardar() {
             alFallar((error && error.message) || String(error));
         })
         .guardarTablero(datos);
+}
+
+/* ---------- Respaldo en este navegador ----------
+   Cada cambio se copia también en el localStorage del navegador. Si la
+   página se cierra sola, se cae la conexión o se recarga sin guardar,
+   al volver a abrirla se recupera lo que había.
+
+   Es un respaldo, no reemplaza a Guardar: vive solo en este navegador y
+   este computador, y se borra solo cuando lo que hay en pantalla ya está
+   guardado en la planilla. La clave lleva el correo, para que en un
+   computador compartido cada estudiante tenga el suyo.
+
+   Junto al tablero se anota sobre qué versión guardada se hizo ("base").
+   Al abrir, si la planilla sigue en esa versión, el respaldo es la
+   continuación y se recupera solo. Si la planilla cambió (se guardó desde
+   otro lado), se pregunta. */
+const CLAVE_RESPALDO = "visualizador-v30-respaldo:" +
+    (ARCHIVO.correo || (EN_APPS_SCRIPT ? "sin-cuenta" : "ejemplo"));
+
+let esperaRespaldo = null;
+let respaldoEnDuda = false;   // mientras se pregunta, no se pisa el respaldo
+
+function respaldar() {
+    clearTimeout(esperaRespaldo);
+    esperaRespaldo = null;
+    if (respaldoEnDuda) return;
+
+    try {
+        const ahora = serial();
+        if (ahora === firmaGuardada && tema === temaGuardado) {
+            window.localStorage.removeItem(CLAVE_RESPALDO);
+            return;
+        }
+        const c = aMundo(window.innerWidth / 2, window.innerHeight / 2);
+        window.localStorage.setItem(CLAVE_RESPALDO, JSON.stringify({
+            base: firmaGuardada,
+            tablero: JSON.parse(ahora),
+            tema: tema,
+            vista: { cx: c.x, cy: c.y, z: vista.z },
+            fecha: Date.now()
+        }));
+    } catch (error) {
+        // Sin almacenamiento (navegación privada, cuota llena): no hay
+        // respaldo, pero la página sigue funcionando igual.
+    }
+}
+
+// Para lo que cambia con cada tecla: espera a que se deje de escribir.
+function respaldarPronto() {
+    clearTimeout(esperaRespaldo);
+    esperaRespaldo = setTimeout(respaldar, 400);
+}
+
+function leerRespaldo() {
+    try {
+        const r = JSON.parse(window.localStorage.getItem(CLAVE_RESPALDO));
+        return r && r.tablero && typeof r.base === "string" ? r : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function borrarRespaldo() {
+    try { window.localStorage.removeItem(CLAVE_RESPALDO); } catch (error) { /* no importa */ }
+}
+
+// Pone en pantalla lo del respaldo. Lo guardado en la planilla queda como
+// paso anterior: Ctrl+Z vuelve a él.
+function recuperarRespaldo(r) {
+    tablero = normalizar(r.tablero);
+    const recuperado = serial();
+    if (recuperado !== foto) {
+        pasado.push(foto);
+        futuro = [];
+        foto = recuperado;
+    }
+    if (temaValido(r.tema)) aplicarTema(r.tema);
+    pintarAhora();
+
+    const v = r.vista;
+    if (v && esNumero(v.cx) && esNumero(v.cy) && esNumero(v.z)) {
+        const z = limitar(v.z, ZOOM_MIN, ZOOM_MAX);
+        irA(window.innerWidth / 2 - v.cx * z, window.innerHeight / 2 - v.cy * z, z, false);
+    }
+    alCambiar();
+}
+
+function mostrarRespaldo(texto, botones) {
+    document.getElementById("respaldo-texto").textContent = texto;
+    const caja = document.getElementById("respaldo-botones");
+    caja.innerHTML = "";
+    botones.forEach(function (b) {
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.textContent = b.rotulo;
+        if (b.principal) boton.className = "principal";
+        boton.addEventListener("click", function () {
+            document.getElementById("respaldo").hidden = true;
+            b.accion();
+        });
+        caja.appendChild(boton);
+    });
+    document.getElementById("respaldo").hidden = false;
+}
+
+function hace(fecha) {
+    const minutos = Math.round((Date.now() - fecha) / 60000);
+    if (!esNumero(minutos) || minutos < 1) return "recién";
+    if (minutos < 60) return "hace " + minutos + " min";
+    const horas = Math.round(minutos / 60);
+    if (horas < 24) return "hace " + horas + " h";
+    return "el " + new Date(fecha).toLocaleDateString("es-CL");
+}
+
+// Al abrir: ¿quedó algo sin guardar la última vez?
+function revisarRespaldo() {
+    const r = leerRespaldo();
+    if (!r) return;
+
+    const cerrar = { rotulo: "✕", accion: function () {} };
+
+    if (r.base === firmaGuardada) {
+        recuperarRespaldo(r);
+        // Sin guardado en la planilla, el respaldo es el único guardado: no
+        // hace falta avisar cada vez.
+        if (!GUARDA) return;
+        mostrarRespaldo("Recuperamos lo que no alcanzaste a guardar (" + hace(r.fecha) + ").", [
+            { rotulo: "Guardar ahora", principal: true, accion: guardar },
+            { rotulo: "Descartar", accion: function () {
+                aplicarTema(temaGuardado);
+                volverA(firmaGuardada);
+                borrarRespaldo();
+            } },
+            cerrar
+        ]);
+        return;
+    }
+
+    // La planilla cambió desde que se hizo el respaldo: se pregunta.
+    respaldoEnDuda = true;
+    mostrarRespaldo("Este navegador tiene cambios sin guardar de " + hace(r.fecha) +
+        ", distintos de lo guardado.", [
+        { rotulo: "Recuperarlos", principal: true, accion: function () {
+            respaldoEnDuda = false;
+            recuperarRespaldo(r);
+        } },
+        { rotulo: "Descartarlos", accion: function () {
+            respaldoEnDuda = false;
+            borrarRespaldo();
+            respaldar();
+        } }
+    ]);
 }
 
 /* =========================================================
@@ -3230,6 +3432,7 @@ function aplicarTema(clave) {
     const actual = TEMAS.find(function (t) { return t.clave === clave; });
     document.getElementById("muestras-actual").innerHTML = muestrasDe({ muestras: actual.muestras.slice(1) });
     marcarCambios();
+    respaldarPronto();
 }
 
 // Los menús flotantes (ayuda, paletas) se cierran al tocar afuera.
@@ -3365,6 +3568,7 @@ function arrancar() {
 
     foto = serial();
     firmaGuardada = foto;
+    revisarRespaldo();
     alCambiar();
 
     document.getElementById("menu").addEventListener("click", function () { alternarLista(); });
@@ -3390,6 +3594,13 @@ function arrancar() {
     // Recargar sin guardar pierde lo hecho: el navegador pregunta antes.
     window.addEventListener("beforeunload", function (e) {
         if (GUARDA && hayCambios()) { e.preventDefault(); e.returnValue = ""; }
+    });
+
+    // Al cerrarse o pasar a segundo plano, el respaldo se escribe de una vez:
+    // así no se pierde lo último que se escribió ni dónde se estaba mirando.
+    window.addEventListener("pagehide", respaldar);
+    document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "hidden") respaldar();
     });
 
     // Con el tablero vacío, la lista se abre sola: es lo primero que hay que usar.
