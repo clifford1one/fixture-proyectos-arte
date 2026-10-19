@@ -13,7 +13,7 @@ Son dos archivos, los mismos que existen en Apps Script:
 - `code.gs`: el servidor. Lee la planilla y guarda el tablero.
 - `index.html`: la página. Trae el marcado, el estilo y el script juntos.
 
-Si se abre `index.html` directo en el navegador, sin Apps Script, muestra un tablero de ejemplo. Sirve para revisar el diseño sin publicar nada.
+Si se abre `index.html` directo en el navegador, sin Apps Script, muestra un tablero de ejemplo. Sirve para revisar el diseño sin publicar nada; el ejemplo incluye una línea que sale del texto de otra.
 
 ---
 
@@ -57,22 +57,25 @@ Si se abre `index.html` directo en el navegador, sin Apps Script, muestra un tab
 
 ### Líneas (conexiones)
 
-- **Crear una línea.** Al pasar el mouse sobre una ficha o un texto aparecen 4 puntos azules. Se arrastra desde uno de ellos hasta otra ficha o texto.
+- **Crear una línea.** Al pasar el mouse sobre una ficha, un texto o el texto de una línea aparecen 4 puntos azules. Se arrastra desde uno de ellos hasta otra ficha, otro texto u otro texto de línea.
   - La línea se **imanta al centro** del destino, que se marca con un punto.
-  - También se puede usar la herramienta Conectar (`L`): con ella se arrastra desde cualquier parte de la ficha.
+  - También se puede usar la herramienta Conectar (`L`): con ella se arrastra desde cualquier parte de la ficha o del texto.
 - **Línea hacia el vacío.** Si se suelta en un espacio vacío, se crea ahí un texto nuevo ya conectado, listo para escribir.
 - **Opciones.** Al tocar una línea aparece su barra de opciones:
   - **Flecha:** la muestra o la quita.
   - **Punteada:** cambia la línea a punteada o continua.
   - **Invertir:** cambia el sentido.
-  - **Agregar texto:** pone un rótulo en el medio de la línea. Doble clic en la línea hace lo mismo.
-- Las líneas siguen a lo que unen cuando se mueve. Si se borra una de las dos puntas, la línea se borra también.
+  - **Agregar texto:** pone un texto en el medio de la línea. Doble clic en la línea hace lo mismo.
+- **Líneas desde el texto de una línea.** Las palabras de una línea se conectan igual que un texto libre: tienen sus 4 puntos, de ellas puede salir una línea hacia una ficha, un texto u otro texto de línea, y también pueden recibir líneas. Se encadenan sin límite: la línea nueva puede tener su propio texto, y de él salir otra.
+- Las líneas siguen a lo que unen cuando se mueve, también cuando cuelgan del texto de otra línea. Si se borra una de las dos puntas, la línea se borra también:
+  - Si se borra una línea, se borran con ella las que salen de su texto (`Ctrl + Z` las recupera todas).
+  - Si solo se borra su texto, las que colgaban de él quedan unidas al medio de la línea.
 
 ### Textos
 
 - **Crear un texto.** Doble clic en el fondo o en la atmósfera, o la herramienta Texto (`T`) y luego un clic donde va.
 - **Editar.** Doble clic en el texto, o elegirlo y apretar `Enter`.
-- **Terminar de escribir.** Clic afuera, `Esc` o `Ctrl + Enter`.
+- **Terminar de escribir.** Clic afuera, `Esc` o `Ctrl + Enter`. Con `Esc` el texto queda elegido; otro `Esc` lo suelta.
 - **Tamaños.** Chico, Mediano y Grande, desde la barra de opciones.
 - **Ancho.** Se cambia desde la esquina. El alto se ajusta solo al texto.
 - **Textos vacíos.** Un texto que queda vacío desaparece al salir de él.
@@ -120,7 +123,7 @@ El botón «Paleta» cambia solo los colores: fondo, paneles, fichas, líneas y 
 | `V` · `T` · `L` · `S` | Mover · Texto · Conectar · Stickers |
 | `Supr` / `Retroceso` | Borrar lo elegido (los trabajos vuelven a la lista) |
 | `Enter` | Editar el texto elegido, el texto de la línea elegida, o ver en grande el trabajo elegido |
-| `Esc` | Cerrar menús o stickers → quitar la selección → volver a Mover → cerrar la lista |
+| `Esc` | Terminar de escribir → cerrar menús o stickers → quitar la selección → volver a Mover → cerrar la lista |
 | `Ctrl + Z` / `Ctrl + Y` | Deshacer / rehacer |
 | `Ctrl + S` | Guardar |
 | `Ctrl + A` | Elegir todo |
@@ -136,7 +139,7 @@ El botón «Paleta» cambia solo los colores: fondo, paneles, fichas, líneas y 
 
 - **Un trabajo está en un solo lugar.** No puede estar en dos nodos a la vez, como sí podía en el v20. Una ficha entre dos atmósferas pertenece a la más chica, o a ninguna.
 - **Los nodos los define la carrera.** El estudiante puede moverlos y cambiarles el tamaño, pero no crearlos, borrarlos ni renombrarlos.
-- **Solo se conectan fichas y textos.** No se pueden conectar stickers ni nodos.
+- **Solo se conectan fichas, textos y textos de líneas.** No se pueden conectar stickers ni nodos. Tampoco una línea sin texto: para que salga algo de ella, primero hay que escribirle uno.
 - **Las líneas son rectas.** No hay curvas, codos, colores ni grosores. Si dos cosas conectadas se superponen, su línea no se dibuja.
 - **Los textos son planos.** No hay negrita, colores ni listas; solo los tres tamaños. Lo que se pega desde otro lado llega sin formato.
 - **Hay un solo tipo de sticker:** la estrella, en 4 colores fijos.
@@ -178,7 +181,8 @@ El botón «Paleta» cambia solo los colores: fondo, paneles, fichas, líneas y 
 ### Técnicas
 
 - **Navegadores:** necesita uno actual (Chrome, Edge, Firefox o Safari de los últimos dos años), porque usa unidades de contenedor y colores con transparencia en CSS.
-- **Tamaño del archivo:** `index.html` pesa unos 270 KB. Casi todo es la tipografía Work Sans, que va incrustada porque Apps Script no permite subir archivos sueltos.
+- **Tamaño del archivo:** `index.html` pesa unos 170 KB. 40 KB son la tipografía Work Sans, que va incrustada porque Apps Script no permite subir archivos sueltos.
+- **La tipografía está recortada** para pesar menos (antes eran 175 KB): trae solo las letras latinas de uso común (español, portugués, francés, alemán…) y los pesos 400 a 600, que son los que usa la página. Una letra que no esté (por ejemplo `ł`, `ő` o el griego) igual se ve, pero con la letra del sistema; un peso fuera de ese rango se ve como el más cercano. Para sumar letras o pesos hay que volver a recortar la Work Sans original de Google Fonts con `pyftsubset` (de fontTools) y reemplazar el base64 del `@font-face`.
 - **Ids de trabajos:** el servidor no revisa que los ids guardados sean de trabajos del propio estudiante. No es un riesgo, porque cada uno solo puede escribir su propia fila.
 - **Lo guardado por versiones anteriores:** la clasificación del v20 (pestaña `clasificacion`) no se importa: el v30 empieza con el tablero vacío. Un tablero del v30 guardado antes de que los nodos fueran círculos se convierte solo a círculos.
 
@@ -217,7 +221,7 @@ La columna `clasificacion` se deduce del tablero: en qué nodo cayó cada trabaj
 ### `code.gs` (servidor)
 
 - **`doGet()` y `reunirArchivo()`** identifican al estudiante por su correo, leen sus filas de la planilla y su tablero guardado, y lo **incrustan todo en la página** como `DATOS`. Así la página no tiene que pedir nada al servidor después de abrir.
-- **`guardarTablero()`** recibe el tablero entero. Antes de escribir, lo pasa por **`limpiarTablero()`**, que descarta lo que no tenga la forma esperada y aplica los topes de la sección 3. Escribe la fila del estudiante con un cerrojo, para que dos guardados no se pisen a medio escribir.
+- **`guardarTablero()`** recibe el tablero entero. Antes de escribir, lo pasa por **`limpiarTablero()`**, que descarta lo que no tenga la forma esperada, las líneas cuyas puntas no existen y aplica los topes de la sección 3. Escribe la fila del estudiante con un cerrojo, para que dos guardados no se pisen a medio escribir.
 
 ### `index.html` (navegador)
 
@@ -231,11 +235,11 @@ tablero = {
   fichas:   { idObra: {x, y, w} }          // el alto sale de la proporción de la imagen
   textos:   [{ id, x, y, w, texto, tam }]
   stickers: [{ id, x, y, w, color }]
-  lineas:   [{ id, de, a, flecha, punteada, texto }]
+  lineas:   [{ id, de, a, flecha, punteada, texto }]   // de, a: referencias "o:", "t:" o "l:"
 }
 ```
 
-- **Referencias.** Cada elemento se identifica con una referencia de texto: `o:` más el id de la obra, `t:` para un texto, `s:` para un sticker, `l:` para una línea y `n:` para un nodo.
+- **Referencias.** Cada elemento se identifica con una referencia de texto: `o:` más el id de la obra, `t:` para un texto, `s:` para un sticker, `l:` para una línea y `n:` para un nodo. Como punta de una línea, `l:` significa el texto de esa línea.
 - **Cambios.** Cada acción cambia `tablero` y llama a `pintar()`, que redibuja a partir de los datos. Los elementos de la página se reutilizan, así que mover una ficha no recarga su imagen.
 - **Tablero infinito.** Todo está dentro de un div, `mundo`, que se desplaza y se escala con `transform` según `vista = {x, y, z}`. `aMundo()` convierte un punto de la pantalla en un punto del tablero.
 - **Gestos.** Al tocar, el `pointerdown` decide un solo gesto según lo que hay debajo y la herramienta elegida: mover, cambiar tamaño, conectar, caja de selección o desplazarse. Cada gesto tiene `mover()` y `soltar()`. Al soltar se llama a `confirmar()`, que hace cuatro cosas:
@@ -245,6 +249,7 @@ tablero = {
   - copia el tablero al respaldo del navegador.
 - **Respaldo.** `respaldar()` escribe en `localStorage` el tablero, la paleta, la vista y la `base`: la versión guardada sobre la que se hizo el respaldo. Al abrir, `revisarRespaldo()` compara esa base con lo que llegó de la planilla. Si son iguales, recupera el respaldo solo; si no, pregunta.
 - **Líneas imantadas.** Las líneas no guardan coordenadas: solo qué unen. `geometria()` traza la recta entre los centros de los dos elementos y la recorta de borde a borde.
+- **Líneas que cuelgan de otras.** `pintarLineas()` primero crea y mide los textos de las líneas, y después traza cada línea antes que las que salen de su texto, guardando su punto medio en `medios`. Así `caja("l:…")` sabe dónde quedó ese texto. Al borrar una línea, `limpiarLineas()` se repite hasta llevarse también las que colgaban de ella. Una línea nueva no puede terminar colgando de sí misma; si los datos traen un ciclo igual, esas líneas no se dibujan.
 - **Clasificación.** `nodoEn()` decide a qué nodo pertenece cada trabajo, según dónde cae su centro.
 - **Paletas.** Son bloques de variables CSS en `:root[data-tema="..."]`. `aplicarTema()` cambia el atributo y el navegador recolorea todo.
 
@@ -261,7 +266,7 @@ tablero = {
 | Nombre del respaldo en el navegador | `CLAVE_RESPALDO` en el script. Cambiarlo hace que se ignoren los respaldos anteriores |
 | Colores de cada paleta | bloques `:root[data-tema=...]` al inicio del `<style>`, más sus muestras en `TEMAS` del script. Si se agrega una paleta, sumarla también a `TEMAS` en `code.gs` |
 | Colores de las estrellas | `ESTRELLAS` en el script. Si se agrega un color, sumarlo también a `COLORES_STICKER` en `code.gs` |
-| Tamaño de nodos, fichas y stickers nuevos | `NODO.diametro`, `ANCHO_FICHA`, `TAMANO_STICKER` |
+| Tamaño de nodos, fichas y stickers nuevos | `DIAMETRO_NODO`, `ANCHO_FICHA`, `TAMANO_STICKER` |
 | Hasta dónde llega el área de un nodo | `ALCANCE_NODO` (0.88 = 88% del radio) |
 | Posición inicial de los nodos | `nodoPorDefecto()` |
 | Límites del zoom | `ZOOM_MIN`, `ZOOM_MAX` |

@@ -149,12 +149,9 @@ function reunirArchivo() {
   };
 }
 
-// Lo mínimo para que la página muestre el aviso en vez de romperse.
+// La página muestra el aviso y no arma el tablero: no necesita más.
 function conError(mensaje) {
-  return {
-    error: mensaje, categorias: CATEGORIAS, lineas: LINEAS_CURRICULARES,
-    obras: [], guardar: false, tablero: null
-  };
+  return { error: mensaje };
 }
 
 function planillaConfigurada() {
@@ -404,24 +401,36 @@ function limpiarTablero(t) {
 
   if (TEMAS.indexOf(t.tema) !== -1) limpio.tema = t.tema;
 
+  // Las puntas de una línea son trabajos ("o:"), textos ("t:") o el texto
+  // de otra línea ("l:").
   const idsDeTextos = limpio.textos.map(function (x) { return x.id; });
-  const existe = function (ref) {
-    ref = String(ref || '');
+  const existe = function (ref, idsDeLineas) {
     const id = ref.slice(2);
     if (ref.indexOf('o:') === 0) return limpio.fichas.hasOwnProperty(id);
     if (ref.indexOf('t:') === 0) return idsDeTextos.indexOf(id) !== -1;
+    if (ref.indexOf('l:') === 0) return idsDeLineas.indexOf(id) !== -1;
     return false;
   };
 
+  let lineas = [];
   (Array.isArray(t.lineas) ? t.lineas : []).slice(0, LIMITES.lineas).forEach(function (l) {
-    if (!esObjeto(l) || !ID_VALIDO.test(String(l.id))) return;
-    if (!existe(l.de) || !existe(l.a) || l.de === l.a) return;
-    limpio.lineas.push({
+    if (!esObjeto(l) || !ID_VALIDO.test(String(l.id)) || String(l.de) === String(l.a)) return;
+    lineas.push({
       id: String(l.id), de: String(l.de), a: String(l.a),
       flecha: l.flecha !== false, punteada: l.punteada === true,
       texto: String(l.texto || '').slice(0, LIMITES.largoEtiqueta)
     });
   });
+
+  // Se filtra hasta que no quede ninguna suelta: al quitar una línea se
+  // caen también las que salían de su texto.
+  let antes;
+  do {
+    antes = lineas.length;
+    const ids = lineas.map(function (l) { return l.id; });
+    lineas = lineas.filter(function (l) { return existe(l.de, ids) && existe(l.a, ids); });
+  } while (lineas.length < antes);
+  limpio.lineas = lineas;
 
   if (sonNumeros(t.vista, ['cx', 'cy', 'z'])) {
     limpio.vista = {
