@@ -245,10 +245,11 @@
     gap: 0.5rem;
     max-width: 66%;
     text-align: center;
-    /* El fondo despeja el centro por si un anillo queda muy cerca. */
-    background: var(--fondo);
-    border-radius: 50%;
     padding: 0.75rem 1rem;
+    /* Sin fondo: tapaba los trabajos que quedaban cerca del centro. Y como
+       el núcleo va encima de ellos, deja pasar los clics; solo el título
+       los recibe. */
+    pointer-events: none;
   }
 
   .titulo-nodo {
@@ -257,6 +258,7 @@
     font-weight: 600;
     letter-spacing: -0.005em;
     line-height: 1.25;
+    pointer-events: auto;
   }
 
   .titulo-nodo:hover { text-decoration: underline; text-underline-offset: 3px; }
