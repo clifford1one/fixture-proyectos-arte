@@ -100,10 +100,10 @@ El botón «Paleta» cambia solo los colores: fondo, paneles, fichas, líneas y 
 
 | Paleta | Atmósferas |
 | --- | --- |
-| **Formal** (la de partida, la más cercana al gris del v20) | gris azulado, beige, salvia |
-| **Girlie** | rosado, lila, durazno |
-| **Oscura** (fondo oscuro, elementos pastel) | lavanda, menta, rosado |
-| **Infantil** | amarillo, celeste, verde menta |
+| **Sobria** (la de partida, la más cercana al gris del v20) | gris azulado, beige, salvia |
+| **Pastel** | rosado, lila, durazno |
+| **Alto contraste** (fondo oscuro, elementos pastel) | lavanda, menta, rosado |
+| **Vibrante** | amarillo, celeste, verde menta |
 
 ### Deshacer y guardar
 

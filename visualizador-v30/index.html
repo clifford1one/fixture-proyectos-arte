@@ -27,7 +27,7 @@
   /* ---------- Paletas ----------
      Cuatro, elegibles desde el botón "Paleta". Solo cambian colores:
      fondo, paneles, fichas, líneas y la atmósfera de cada nodo (--atm-1,
-     2 y 3, en "r g b" para poder darles transparencia). Formal es la de
+     2 y 3, en "r g b" para poder darles transparencia). Sobria es la de
      partida y la más cercana al gris del v20. */
   :root,
   :root[data-tema="formal"] {
@@ -867,6 +867,11 @@
     box-shadow: 0 14px 40px rgba(0, 0, 0, 0.16);
     font-size: 13px;
     line-height: 1.5;
+    /* En pantallas bajas no cabe entero: se recorre por dentro */
+    max-height: calc(100vh - 82px);
+    max-height: calc(100dvh - 82px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .ayuda h2 { margin: 0 0 10px; font-size: 14px; font-weight: 500; }
@@ -904,6 +909,8 @@
     inset: 0 auto 0 0;
     z-index: 7;
     width: var(--ancho-lista);
+    display: flex;
+    flex-direction: column;
     background: var(--lista);
     overflow-y: auto;
     padding: 76px 16px 40px;
@@ -1033,6 +1040,25 @@
   .agrandar:hover { background: var(--tinta); color: var(--fondo); }
 
   @media (hover: none) { .agrandar { opacity: 1; } }
+
+  /* El crédito queda al final de la lista; si hay pocos trabajos, abajo
+     de todo igual (la lista es una columna y él empuja hacia abajo). */
+  .creditos {
+    margin: auto 0 0;
+    padding: 28px 8px 0;
+    font-size: 12px;
+    color: var(--tinta-suave);
+  }
+
+  .creditos a {
+    color: var(--tinta-media);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--borde);
+    transition: color 0.2s, text-decoration-color 0.2s;
+  }
+
+  .creditos a:hover { color: var(--tinta); text-decoration-color: currentColor; }
 
   .lista-vacia { padding: 0 8px; font-size: 14px; color: var(--tinta-media); line-height: 1.5; }
 
@@ -1289,6 +1315,7 @@
     </div>
     <p class="lista-ayuda">Arrastra un trabajo al tablero y suéltalo donde quieras. Tocarlo lo pone en el centro de la vista.</p>
     <div id="cursos"></div>
+    <p class="creditos">Diseñado y desarrollado por <a href="https://clifford1one.github.io/" target="_blank" rel="noopener">clifford1one</a></p>
   </aside>
 
   <button type="button" class="menu" id="menu" aria-controls="lista" aria-expanded="false">
@@ -1402,10 +1429,10 @@ const TAMANO_STICKER = 56;
 // Las paletas: sus colores están en el CSS (:root[data-tema]); estas
 // muestras son solo para el selector.
 const TEMAS = [
-    { clave: "formal", nombre: "Formal", muestras: ["#f6f6f3", "rgb(190 200 214)", "rgb(214 206 192)", "rgb(196 212 200)"] },
-    { clave: "girlie", nombre: "Girlie", muestras: ["#fff5f8", "rgb(248 182 208)", "rgb(226 194 240)", "rgb(255 206 190)"] },
-    { clave: "oscura", nombre: "Oscura", muestras: ["#22212e", "rgb(186 170 255)", "rgb(160 222 208)", "rgb(245 184 204)"] },
-    { clave: "infantil", nombre: "Infantil", muestras: ["#fffcef", "rgb(255 222 130)", "rgb(160 214 255)", "rgb(170 230 180)"] }
+    { clave: "formal", nombre: "Sobria", muestras: ["#f6f6f3", "rgb(190 200 214)", "rgb(214 206 192)", "rgb(196 212 200)"] },
+    { clave: "girlie", nombre: "Pastel", muestras: ["#fff5f8", "rgb(248 182 208)", "rgb(226 194 240)", "rgb(255 206 190)"] },
+    { clave: "oscura", nombre: "Alto contraste", muestras: ["#22212e", "rgb(186 170 255)", "rgb(160 222 208)", "rgb(245 184 204)"] },
+    { clave: "infantil", nombre: "Vibrante", muestras: ["#fffcef", "rgb(255 222 130)", "rgb(160 214 255)", "rgb(170 230 180)"] }
 ];
 
 // Estrella de cinco puntas, sin borde, en una caja de 100 × 100.
